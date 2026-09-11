@@ -1,0 +1,9 @@
+node_modules
+.next
+out
+build
+coverage
+public
+prisma/migrations
+*.ico
+*.svg

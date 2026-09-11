@@ -1,0 +1,181 @@
+// Quantum Daily — Database Schema
+// Phase 1: Foundation schema for problems, user profiles, and activity tracking.
+// Authentication tables will be added in Phase 2.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// Enums
+// ========================================
+
+enum ProblemDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum ProblemStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ActivityType {
+  PROBLEM_ATTEMPT
+  PROBLEM_SOLVED
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  DAILY_CHALLENGE_ATTEMPT
+}
+
+// ========================================
+// User & Profile (Foundation — auth in Phase 2)
+// ========================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile           Profile?
+  problemAttempts   UserProblemProgress[]
+  activities        UserActivity[]
+  dailyChallengeSubmissions DailyChallengeSubmission[]
+
+  @@map("users")
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  username  String?  @unique
+  displayName String?
+  bio       String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+// ========================================
+// Problems
+// ========================================
+
+model Problem {
+  id          String             @id @default(uuid())
+  slug        String             @unique
+  title       String
+  description String
+  difficulty  ProblemDifficulty
+  status      ProblemStatus      @default(DRAFT)
+  tags        ProblemTag[]
+  versions    ProblemVersion[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  attempts UserProblemProgress[]
+
+  @@index([difficulty])
+  @@index([status])
+  @@map("problems")
+}
+
+model ProblemVersion {
+  id        String   @id @default(uuid())
+  problemId String
+  version   Int
+  content   Json     // Rich problem content (instructions, examples, test cases)
+  createdAt DateTime @default(now())
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([problemId, version])
+  @@map("problem_versions")
+}
+
+model ProblemTag {
+  id        String @id @default(uuid())
+  problemId String
+  name      String
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([problemId, name])
+  @@map("problem_tags")
+}
+
+// ========================================
+// User Progress & Activity
+// ========================================
+
+model UserProblemProgress {
+  id        String   @id @default(uuid())
+  userId    String
+  problemId String
+  attempts  Int      @default(0)
+  solved    Boolean  @default(false)
+  bestTime  Int?     // Best solve time in seconds
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+  @@map("user_problem_progress")
+}
+
+model UserActivity {
+  id        String       @id @default(uuid())
+  userId    String
+  type      ActivityType
+  metadata  Json?        // Activity-specific data (problem ID, timestamps, etc.)
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("user_activities")
+}
+
+// ========================================
+// Daily Challenges
+// ========================================
+
+model DailyChallenge {
+  id          String   @id @default(uuid())
+  date        DateTime @unique @db.Date
+  problemId   String
+  createdAt   DateTime @default(now())
+
+  submissions DailyChallengeSubmission[]
+
+  @@map("daily_challenges")
+}
+
+model DailyChallengeSubmission {
+  id            String   @id @default(uuid())
+  userId        String
+  challengeId   String
+  solved        Boolean  @default(false)
+  solveTime     Int?     // Solve time in seconds
+  submittedAt   DateTime @default(now())
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge DailyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
+  @@map("daily_challenge_submissions")
+}
