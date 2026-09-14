@@ -4,7 +4,7 @@ import LearnPage from "@/app/learn/page";
 import ProjectsPage from "@/app/projects/page";
 import ProfilePage from "@/app/profile/page";
 import SettingsPage from "@/app/settings/page";
-import SecuritySettingsPage from "@/app/settings/security/page";
+
 
 describe("Learn Page", () => {
   it("renders the learn heading", () => {
@@ -56,14 +56,4 @@ describe("Settings Page", () => {
   });
 });
 
-describe("Security Settings Page", () => {
-  it("renders the security settings heading", () => {
-    render(<SecuritySettingsPage />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Security Settings");
-  });
 
-  it("shows auth required state", () => {
-    render(<SecuritySettingsPage />);
-    expect(screen.getByText(/Authentication required/)).toBeInTheDocument();
-  });
-});

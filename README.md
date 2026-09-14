@@ -17,8 +17,9 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 ## Current Status
 
 **Phase 1 — Foundation** ✅
+**Phase 2 — Authentication & Security** ✅
 
-The foundation is complete. This includes:
+### Phase 1 — Foundation
 - Next.js application with TypeScript strict mode
 - Tailwind CSS with a coherent design token system
 - Component library (Button, Card, Badge, Alert, Skeleton, EmptyState)
@@ -30,10 +31,24 @@ The foundation is complete. This includes:
 - Responsive layout with light/dark theme support
 - Accessibility foundation (skip links, focus indicators, ARIA, semantic HTML)
 - CI pipeline (GitHub Actions)
-- 67 unit tests across 10 test files
 - Architecture, security, and roadmap documentation
 
-**Not yet implemented:** Authentication, problems, code execution, quantum simulation, debugger, real hardware, projects, portfolio, AI tutor.
+### Phase 2 — Authentication & Security
+- User registration with email verification
+- Secure login with HTTP-only session cookies
+- Password hashing with bcrypt (12 salt rounds)
+- Email verification flow with cryptographically random tokens
+- Forgot password / password reset flow
+- Password change in settings (requires current password)
+- Rate limiting on all auth endpoints
+- Security event logging (audit trail)
+- Protected route middleware
+- Enumeration protection (generic error messages)
+- Auth-aware header (login/signup when unauthenticated, profile/settings/sign out when authenticated)
+- Security settings page (email verification, change password, session management)
+- 110 unit tests across 14 test files
+
+**Not yet implemented:** Problems, code execution, quantum simulation, debugger, real hardware, projects, portfolio, AI tutor.
 
 ## Architecture
 
@@ -42,7 +57,13 @@ The foundation is complete. This includes:
 │                Next.js 16 App               │
 │  (React 19, TypeScript, Tailwind CSS 4)     │
 ├─────────────────────────────────────────────┤
-│          API Routes / Server Actions        │
+│          Auth Middleware (cookie check)      │
+├─────────────────────────────────────────────┤
+│     API Routes (auth, health, future)       │
+├─────────────────────────────────────────────┤
+│     Auth Service (signup, login, etc.)       │
+├─────────────────────────────────────────────┤
+│  Session Mgmt │ Password │ Tokens │ Email   │
 ├─────────────────────────────────────────────┤
 │             Prisma ORM Layer                │
 ├─────────────────────────────────────────────┤
@@ -65,6 +86,7 @@ See [docs/architecture/](docs/architecture/) for detailed documentation.
 | Language | TypeScript 5 (strict) |
 | UI | React 19, Tailwind CSS 4 |
 | Database | PostgreSQL, Prisma 5 |
+| Auth | bcryptjs, secure HTTP-only cookies |
 | Validation | Zod |
 | Testing | Vitest, React Testing Library |
 | Linting | ESLint 9, Prettier |
@@ -127,7 +149,14 @@ See `.env.example` for the full list. Key variables:
 
 ```bash
 DATABASE_URL          # PostgreSQL connection string
-NEXT_PUBLIC_APP_URL   # Application URL
+APP_URL               # Application URL (server-side, for email links)
+NEXT_PUBLIC_APP_URL   # Application URL (client-side)
+AUTH_SECRET           # Session/CSRF secret (min 32 chars, change for production)
+EMAIL_FROM            # Sender email address
+SMTP_HOST             # SMTP server (optional, logs to console in dev)
+SMTP_PORT             # SMTP port
+SMTP_USER             # SMTP username
+SMTP_PASSWORD         # SMTP password
 LOG_LEVEL             # debug | info | warn | error
 ```
 
@@ -139,12 +168,14 @@ npm run test:watch # Watch mode
 ```
 
 Tests cover:
-- Utility functions
-- Constants
-- Logger
+- Utility functions, constants, logger
 - Button and Card components
 - All route pages (home, dashboard, problems, learn, projects, profile, settings)
 - Health API endpoint
+- Auth validation schemas (signup, login, forgot-password, reset-password, change-password)
+- Password hashing and verification (bcrypt)
+- Token generation and hashing (session, verification, reset)
+- Rate limiting logic
 
 ## Project Structure
 
@@ -174,7 +205,7 @@ quantoo/
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Foundation | ✅ Complete |
-| 2 | Authentication & Security | Planned |
+| 2 | Authentication & Security | ✅ Complete |
 | 3 | Problem & Content Engine | Planned |
 | 4 | Code Workspace + Execution + Judge | Planned |
 | 5 | Quantum Debugger | Planned |

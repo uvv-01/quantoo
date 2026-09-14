@@ -16,18 +16,22 @@
 - [x] Unit tests
 - [x] Documentation
 
-## Phase 2: Authentication & Security
+## Phase 2: Authentication & Security ✅
 
-- [ ] Authentication system (NextAuth / Lucia)
-- [ ] Email/password registration
-- [ ] Email verification
-- [ ] Login/logout
-- [ ] Password reset
+- [x] Custom authentication system (bcrypt, HTTP-only cookies)
+- [x] Email/password registration with validation
+- [x] Email verification with cryptographically random tokens
+- [x] Login/logout with secure session management
+- [x] Password reset flow (forgot password → email → reset)
+- [x] Password change in settings (requires current password)
+- [x] Rate limiting on all auth endpoints
+- [x] Security event audit logging
+- [x] Enumeration protection (generic error messages)
+- [x] Protected route middleware
+- [x] Auth-aware UI (header, settings/security)
 - [ ] Multi-factor authentication (TOTP)
-- [ ] Passkey support
-- [ ] Session management
-- [ ] Rate limiting
-- [ ] Account lockout
+- [ ] Passkey support (WebAuthn)
+- [ ] Account lockout (progressive delays)
 
 ## Phase 3: Problem & Content Engine
 

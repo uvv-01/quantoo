@@ -1,6 +1,6 @@
 # Security Baseline
 
-> **Status: Phase 1 — Foundation**
+> **Status: Phase 2 — Authentication & Security**
 
 ## Overview
 
@@ -39,17 +39,26 @@ This document describes the security baseline established in Phase 1. This is a 
 - No sensitive data in client bundles
 - Environment variables with `NEXT_PUBLIC_` prefix are safe to expose
 
-## Not Yet Implemented (Phase 2+)
+### Authentication (Phase 2)
+- Secure HTTP-only session cookies (HttpOnly, Secure, SameSite=Lax)
+- bcrypt password hashing (12 salt rounds)
+- Cryptographic token generation for email verification and password reset
+- Tokens stored as SHA-256 hashes, single-use, time-limited
+- Enumeration protection on login, signup, forgot-password, resend-verification
+- Rate limiting on all auth endpoints (in-memory, Redis-swappable)
+- Security event audit logging (10 event types)
+- Protected route middleware
+- Password reset invalidates all user sessions
+- Generic error messages across all auth flows
 
-- Authentication and session management
-- Multi-factor authentication
-- Passkey support
-- Rate limiting
-- Account lockout
-- Email verification
-- Password reset
+## Not Yet Implemented (Phase 3+)
+
+- Multi-factor authentication (TOTP)
+- Passkey support (WebAuthn)
+- Account lockout (progressive delays)
 - Role-based access control
 - API key management
+- IP-based anomaly detection
 
 ## Guidelines
 

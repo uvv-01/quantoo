@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Menu, X, Atom } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
@@ -17,7 +17,40 @@ const navItems = [
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<{ email: string; emailVerified: boolean } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } catch {
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    }
+    checkAuth();
+  }, [pathname]); // Re-check on navigation
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      setUser(null);
+      router.push("/");
+      router.refresh();
+    } catch {
+      router.push("/");
+    }
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -50,13 +83,51 @@ export function Header() {
         {/* Right side */}
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Link
-            href={ROUTES.profile}
-            className="hidden md:flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
-            aria-label="Profile"
-          >
-            YS
-          </Link>
+
+          {!authLoading && (
+            <>
+              {user ? (
+                /* Authenticated: show profile + sign out */
+                <div className="hidden md:flex items-center gap-2">
+                  <Link
+                    href={ROUTES.profile}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
+                    aria-label="Profile"
+                  >
+                    {user.email.charAt(0).toUpperCase()}
+                  </Link>
+                  <Link
+                    href={ROUTES.settings}
+                    className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
+                  >
+                    Settings
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              ) : (
+                /* Not authenticated: show login + signup */
+                <div className="hidden md:flex items-center gap-2">
+                  <Link
+                    href="/login"
+                    className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
+                  >
+                    Sign in
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="px-3 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors"
+                  >
+                    Sign up
+                  </Link>
+                </div>
+              )}
+            </>
+          )}
 
           {/* Mobile menu button */}
           <button
@@ -92,20 +163,51 @@ export function Header() {
               {item.label}
             </Link>
           ))}
-          <Link
-            href={ROUTES.profile}
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md"
-          >
-            Profile
-          </Link>
-          <Link
-            href={ROUTES.settings}
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md"
-          >
-            Settings
-          </Link>
+
+          {user ? (
+            <>
+              <Link
+                href={ROUTES.profile}
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md"
+              >
+                Profile
+              </Link>
+              <Link
+                href={ROUTES.settings}
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md"
+              >
+                Settings
+              </Link>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="block w-full text-left px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/signup"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
         </nav>
       )}
     </header>

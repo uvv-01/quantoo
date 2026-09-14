@@ -1,6 +1,5 @@
 // Quantum Daily — Database Schema
-// Phase 1: Foundation schema for problems, user profiles, and activity tracking.
-// Authentication tables will be added in Phase 2.
+// Phase 2: Authentication, sessions, verification, and password reset.
 
 generator client {
   provider = "prisma-client-js"
@@ -36,33 +35,120 @@ enum ActivityType {
   DAILY_CHALLENGE_ATTEMPT
 }
 
+enum SecurityEventType {
+  SIGNUP_SUCCESS
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  LOGOUT
+  EMAIL_VERIFIED
+  VERIFICATION_REQUESTED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_SUCCESS
+  PASSWORD_CHANGED
+  SESSION_REVOKED
+}
+
 // ========================================
-// User & Profile (Foundation — auth in Phase 2)
+// Authentication
 // ========================================
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String    @id @default(uuid())
+  email          String    @unique
+  emailVerified  DateTime?
+  passwordHash   String
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   profile           Profile?
+  sessions          Session[]
+  verificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
   problemAttempts   UserProblemProgress[]
   activities        UserActivity[]
   dailyChallengeSubmissions DailyChallengeSubmission[]
+  securityEvents    SecurityEvent[]
 
   @@map("users")
 }
 
-model Profile {
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  tokenHash    String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model EmailVerificationToken {
   id        String   @id @default(uuid())
-  userId    String   @unique
-  username  String?  @unique
-  displayName String?
-  bio       String?
-  avatarUrl String?
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("password_reset_tokens")
+}
+
+model SecurityEvent {
+  id        String            @id @default(uuid())
+  userId    String?
+  type      SecurityEventType
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime          @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([type])
+  @@map("security_events")
+}
+
+// ========================================
+// Profile
+// ========================================
+
+model Profile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  username    String?  @unique
+  displayName String?
+  bio         String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -74,16 +160,16 @@ model Profile {
 // ========================================
 
 model Problem {
-  id          String             @id @default(uuid())
-  slug        String             @unique
+  id          String           @id @default(uuid())
+  slug        String           @unique
   title       String
   description String
   difficulty  ProblemDifficulty
-  status      ProblemStatus      @default(DRAFT)
+  status      ProblemStatus    @default(DRAFT)
   tags        ProblemTag[]
   versions    ProblemVersion[]
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   attempts UserProblemProgress[]
 
@@ -96,7 +182,7 @@ model ProblemVersion {
   id        String   @id @default(uuid())
   problemId String
   version   Int
-  content   Json     // Rich problem content (instructions, examples, test cases)
+  content   Json
   createdAt DateTime @default(now())
 
   problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
@@ -126,7 +212,7 @@ model UserProblemProgress {
   problemId String
   attempts  Int      @default(0)
   solved    Boolean  @default(false)
-  bestTime  Int?     // Best solve time in seconds
+  bestTime  Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -141,7 +227,7 @@ model UserActivity {
   id        String       @id @default(uuid())
   userId    String
   type      ActivityType
-  metadata  Json?        // Activity-specific data (problem ID, timestamps, etc.)
+  metadata  Json?
   createdAt DateTime     @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -155,10 +241,10 @@ model UserActivity {
 // ========================================
 
 model DailyChallenge {
-  id          String   @id @default(uuid())
-  date        DateTime @unique @db.Date
-  problemId   String
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  date      DateTime @unique @db.Date
+  problemId String
+  createdAt DateTime @default(now())
 
   submissions DailyChallengeSubmission[]
 
@@ -166,12 +252,12 @@ model DailyChallenge {
 }
 
 model DailyChallengeSubmission {
-  id            String   @id @default(uuid())
-  userId        String
-  challengeId   String
-  solved        Boolean  @default(false)
-  solveTime     Int?     // Solve time in seconds
-  submittedAt   DateTime @default(now())
+  id          String   @id @default(uuid())
+  userId      String
+  challengeId String
+  solved      Boolean  @default(false)
+  solveTime   Int?
+  submittedAt DateTime @default(now())
 
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   challenge DailyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
