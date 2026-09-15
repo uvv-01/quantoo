@@ -18,6 +18,7 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 
 **Phase 1 — Foundation** ✅
 **Phase 2 — Authentication & Security** ✅
+**Phase 3 — Problem & Content Engine** ✅
 
 ### Phase 1 — Foundation
 - Next.js application with TypeScript strict mode
@@ -46,9 +47,22 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 - Enumeration protection (generic error messages)
 - Auth-aware header (login/signup when unauthenticated, profile/settings/sign out when authenticated)
 - Security settings page (email verification, change password, session management)
-- 110 unit tests across 14 test files
 
-**Not yet implemented:** Problems, code execution, quantum simulation, debugger, real hardware, projects, portfolio, AI tutor.
+### Phase 3 — Problem & Content Engine
+- Enhanced Prisma schema: Concepts, Tags, Learning Topics, Problem Relations, Test Specifications
+- Problem discovery page with search, difficulty/concept/tag filtering, and pagination
+- Problem detail page with description, learning objectives, requirements, hints, expected outcomes, and related problems
+- Learning topics page with concept coverage and problem counts
+- Topic detail page with ordered problem lists
+- RESTful API endpoints for problems, topics, and user progress
+- Progress tracking system (start, attempt, solve) with ownership enforcement
+- 5 high-quality seed problems (Qubit Basics, X Gate, Superposition, Measurement, Bell State)
+- Quantum concept taxonomy (10 concepts across 4 categories)
+- Problem relation system (prerequisite, next, related, same-concept)
+- Test specification architecture for future Judge integration
+- 198 unit tests across 19 test files
+
+**Not yet implemented:** Code execution, quantum simulation, debugger, real hardware, projects, portfolio, AI tutor.
 
 ## Architecture
 
@@ -59,11 +73,15 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 ├─────────────────────────────────────────────┤
 │          Auth Middleware (cookie check)      │
 ├─────────────────────────────────────────────┤
-│     API Routes (auth, health, future)       │
+│  API Routes (auth, problems, progress, etc.)│
 ├─────────────────────────────────────────────┤
-│     Auth Service (signup, login, etc.)       │
+│  Service Layer                              │
+│  ├─ Auth (signup, login, sessions)           │
+│  ├─ Problem (CRUD, search, filter, paginate) │
+│  ├─ Learning (topics, concepts, progress)    │
+│  └─ Progress (attempts, completion)          │
 ├─────────────────────────────────────────────┤
-│  Session Mgmt │ Password │ Tokens │ Email   │
+│  Validation (Zod) │ Security Events │ Email │
 ├─────────────────────────────────────────────┤
 │             Prisma ORM Layer                │
 ├─────────────────────────────────────────────┤
@@ -71,7 +89,7 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 └─────────────────────────────────────────────┘
 
 Future (Phase 4+):
-  Execution API → Job/Sandbox → Python Runtime → Qiskit Aer
+  Code Workspace → Execution API → Python Runtime → Qiskit Aer
        ↓
   Execution Artifact → Quantum Judge → Debugger → UI
 ```
@@ -176,16 +194,27 @@ Tests cover:
 - Password hashing and verification (bcrypt)
 - Token generation and hashing (session, verification, reset)
 - Rate limiting logic
+- Problem validation schemas (list query, slug params, attempt/solve)
+- Problem service logic (filtering, search, pagination)
+- Concept/tag normalization and validation
+- Problem relation types and test specification architecture
+- Progress tracking logic (status transitions, attempt counting, ownership)
+- Security tests (draft protection, authorization, input validation, data isolation)
 
 ## Project Structure
 
 ```
 quantoo/
 ├── app/                  # Next.js App Router
-│   ├── api/health/       # Health check endpoint
+│   ├── api/
+│   │   ├── auth/         # Auth routes (signup, login, logout, etc.)
+│   │   ├── health/       # Health check endpoint
+│   │   ├── problems/     # Problem listing and detail
+│   │   ├── learn/        # Learning topics
+│   │   └── progress/     # User progress tracking
 │   ├── dashboard/        # Dashboard
-│   ├── problems/         # Problem catalog
-│   ├── learn/            # Learning paths
+│   ├── problems/         # Problem catalog UI
+│   ├── learn/            # Learning paths UI
 │   ├── projects/         # Projects
 │   ├── profile/          # User profile
 │   └── settings/         # Settings
@@ -193,8 +222,20 @@ quantoo/
 │   ├── ui/               # Reusable UI components
 │   ├── layout/           # Header, Footer, ThemeToggle
 │   └── providers/        # ThemeProvider
-├── lib/                  # Utilities, env, logging, constants
-├── prisma/               # Database schema
+├── lib/
+│   ├── auth/             # Auth service, session, tokens, email
+│   ├── server/           # Server-side services
+│   │   ├── problem-service.ts
+│   │   ├── learning-service.ts
+│   │   └── progress-service.ts
+│   ├── validation/       # Zod schemas
+│   ├── constants.ts      # App constants
+│   ├── env.ts            # Environment validation
+│   ├── logger.ts         # Structured logging
+│   ├── prisma.ts         # Prisma client singleton
+│   └── utils.ts          # Utility functions
+├── middleware.ts          # Route protection middleware
+├── prisma/               # Database schema + seed
 ├── tests/                # Unit tests
 ├── e2e/                  # E2E tests (future)
 └── docs/                 # Documentation
@@ -206,7 +247,7 @@ quantoo/
 |-------|------|--------|
 | 1 | Foundation | ✅ Complete |
 | 2 | Authentication & Security | ✅ Complete |
-| 3 | Problem & Content Engine | Planned |
+| 3 | Problem & Content Engine | ✅ Complete |
 | 4 | Code Workspace + Execution + Judge | Planned |
 | 5 | Quantum Debugger | Planned |
 | 6 | Noise, Optimization & Hardware-Aware Simulation | Planned |

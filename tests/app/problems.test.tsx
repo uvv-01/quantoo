@@ -5,26 +5,31 @@ import ProblemsPage from "@/app/problems/page";
 describe("Problems Page", () => {
   it("renders the problems heading", () => {
     render(<ProblemsPage />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Problems");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Problems",
+    );
   });
 
-  it("renders problem catalog section", () => {
+  it("renders the description", () => {
     render(<ProblemsPage />);
-    expect(screen.getByText("Problem Catalog")).toBeInTheDocument();
+    expect(
+      screen.getByText(/quantum computing challenges/i),
+    ).toBeInTheDocument();
   });
 
-  it("shows coming soon state", () => {
+  it("renders a search input", () => {
     render(<ProblemsPage />);
-    expect(screen.getByText(/No problems available yet/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: /search problems/i }),
+    ).toBeInTheDocument();
   });
 
-  it("mentions Phase 3 for problems", () => {
+  it("renders difficulty filter buttons", () => {
     render(<ProblemsPage />);
-    expect(screen.getAllByText(/Phase 3/).length).toBeGreaterThan(0);
-  });
-
-  it("has filter placeholder", () => {
-    render(<ProblemsPage />);
-    expect(screen.getByText(/Filtering will be available/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /beginner/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /easy/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /medium/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /hard/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /expert/i })).toBeInTheDocument();
   });
 });

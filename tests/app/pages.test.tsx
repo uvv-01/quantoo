@@ -5,25 +5,28 @@ import ProjectsPage from "@/app/projects/page";
 import ProfilePage from "@/app/profile/page";
 import SettingsPage from "@/app/settings/page";
 
-
 describe("Learn Page", () => {
   it("renders the learn heading", () => {
     render(<LearnPage />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Learn");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Learn",
+    );
   });
 
-  it("renders learning topics", () => {
+  it("renders the description", () => {
     render(<LearnPage />);
-    expect(screen.getByText("Quantum Fundamentals")).toBeInTheDocument();
-    expect(screen.getByText("Circuit Design")).toBeInTheDocument();
-    expect(screen.getByText("Algorithms")).toBeInTheDocument();
+    expect(
+      screen.getByText(/structured quantum computing learning paths/i),
+    ).toBeInTheDocument();
   });
 });
 
 describe("Projects Page", () => {
   it("renders the projects heading", () => {
     render(<ProjectsPage />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Projects");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Projects",
+    );
   });
 
   it("shows coming soon state", () => {
@@ -35,7 +38,9 @@ describe("Projects Page", () => {
 describe("Profile Page", () => {
   it("renders the profile heading", () => {
     render(<ProfilePage />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Profile");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Profile",
+    );
   });
 
   it("shows auth required state", () => {
@@ -47,13 +52,15 @@ describe("Profile Page", () => {
 describe("Settings Page", () => {
   it("renders the settings heading", () => {
     render(<SettingsPage />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Settings");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Settings",
+    );
   });
 
   it("shows auth required state", () => {
     render(<SettingsPage />);
-    expect(screen.getAllByText(/Authentication required/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/Authentication required/).length,
+    ).toBeGreaterThan(0);
   });
 });
-
-

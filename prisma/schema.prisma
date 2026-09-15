@@ -1,5 +1,5 @@
 // Quantum Daily — Database Schema
-// Phase 2: Authentication, sessions, verification, and password reset.
+// Phase 3: Problem system, content taxonomy, learning architecture, progress tracking.
 
 generator client {
   provider = "prisma-client-js"
@@ -16,23 +16,54 @@ datasource db {
 
 enum ProblemDifficulty {
   BEGINNER
-  INTERMEDIATE
-  ADVANCED
+  EASY
+  MEDIUM
+  HARD
   EXPERT
 }
 
 enum ProblemStatus {
   DRAFT
+  REVIEW
   PUBLISHED
   ARCHIVED
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  ATTEMPTED
+  SOLVED
 }
 
 enum ActivityType {
   PROBLEM_ATTEMPT
   PROBLEM_SOLVED
+  PROBLEM_VIEWED
   PROJECT_CREATED
   PROJECT_UPDATED
   DAILY_CHALLENGE_ATTEMPT
+  LEARNING_TOPIC_STARTED
+  LEARNING_TOPIC_COMPLETED
+}
+
+enum TestSpecType {
+  STRUCTURAL
+  FUNCTIONAL
+  STATE
+  DISTRIBUTION
+  UNITARY
+  OBSERVABLE
+  ENTANGLEMENT
+  STATISTICAL
+  RESOURCE
+}
+
+enum ProblemRelationType {
+  PREREQUISITE
+  RELATED
+  NEXT
+  SAME_CONCEPT
 }
 
 enum SecurityEventType {
@@ -65,10 +96,11 @@ model User {
   sessions          Session[]
   verificationTokens EmailVerificationToken[]
   passwordResetTokens PasswordResetToken[]
-  problemAttempts   UserProblemProgress[]
+  problemProgress   UserProblemProgress[]
   activities        UserActivity[]
   dailyChallengeSubmissions DailyChallengeSubmission[]
   securityEvents    SecurityEvent[]
+  learningProgress  UserLearningProgress[]
 
   @@map("users")
 }
@@ -156,26 +188,168 @@ model Profile {
 }
 
 // ========================================
+// Concepts (reusable quantum concept taxonomy)
+// ========================================
+
+model Concept {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  category    String?  // e.g. "foundations", "gates", "algorithms", "error-correction"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  problems     ProblemConcept[]
+  learningTopics LearningTopicConcept[]
+
+  @@index([category])
+  @@index([slug])
+  @@map("concepts")
+}
+
+// ========================================
+// Tags (reusable problem tags)
+// ========================================
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  problems ProblemTag[]
+
+  @@index([slug])
+  @@map("tags")
+}
+
+// ========================================
+// Learning Topics
+// ========================================
+
+model LearningTopic {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  description String?
+  category    String?  // e.g. "fundamentals", "gates", "circuits", "algorithms"
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  concepts   LearningTopicConcept[]
+  problems   LearningTopicProblem[]
+  userProgress UserLearningProgress[]
+
+  @@index([slug])
+  @@index([category, sortOrder])
+  @@map("learning_topics")
+}
+
+model LearningTopicConcept {
+  id            String @id @default(uuid())
+  topicId       String
+  conceptId     String
+  sortOrder     Int    @default(0)
+
+  topic  LearningTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  concept Concept      @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, conceptId])
+  @@map("learning_topic_concepts")
+}
+
+model LearningTopicProblem {
+  id        String @id @default(uuid())
+  topicId   String
+  problemId String
+  sortOrder Int    @default(0)
+
+  topic   LearningTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  problem Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, problemId])
+  @@map("learning_topic_problems")
+}
+
+// ========================================
 // Problems
 // ========================================
 
 model Problem {
-  id          String           @id @default(uuid())
-  slug        String           @unique
-  title       String
-  description String
-  difficulty  ProblemDifficulty
-  status      ProblemStatus    @default(DRAFT)
-  tags        ProblemTag[]
-  versions    ProblemVersion[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id               String          @id @default(uuid())
+  slug             String          @unique
+  title            String
+  shortDescription String
+  description      String          @db.Text
+  difficulty       ProblemDifficulty
+  status           ProblemStatus   @default(DRAFT)
+  estimatedMinutes Int?
+  prerequisites    String?         @db.Text  // Text list of prerequisite descriptions
+  learningObjectives String?       @db.Text  // JSON array of objectives
+  hints            Json?           // Structured hints array: [{content, order}]
+  solutionExplanation Json?        // Structured explanation: {approach, whyItWorks, concepts, commonMistakes, furtherLearning}
+  testSpecification Json?          // Future Judge contract: structured test cases
+  requirements     Json?           // Problem requirements: {qubits, gates, depth, etc.}
+  expectedOutcome  Json?           // What a correct solution achieves
+  publishedAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
-  attempts UserProblemProgress[]
+  tags             ProblemTag[]
+  concepts         ProblemConcept[]
+  versions         ProblemVersion[]
+  progress         UserProblemProgress[]
+  activity         UserActivity[]
+  learningTopics   LearningTopicProblem[]
+  relatedFrom      ProblemRelation[] @relation("fromProblem")
+  relatedTo        ProblemRelation[] @relation("toProblem")
 
   @@index([difficulty])
   @@index([status])
+  @@index([status, difficulty])
+  @@index([publishedAt])
   @@map("problems")
+}
+
+model ProblemTag {
+  id        String @id @default(uuid())
+  problemId String
+  tagId     String
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([problemId, tagId])
+  @@map("problem_tags")
+}
+
+model ProblemConcept {
+  id        String @id @default(uuid())
+  problemId String
+  conceptId String
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([problemId, conceptId])
+  @@map("problem_concepts")
+}
+
+model ProblemRelation {
+  id         String              @id @default(uuid())
+  fromId     String
+  toId       String
+  type       ProblemRelationType
+
+  fromProblem Problem @relation("fromProblem", fields: [fromId], references: [id], onDelete: Cascade)
+  toProblem   Problem @relation("toProblem", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@unique([fromId, toId, type])
+  @@index([fromId])
+  @@index([toId])
+  @@map("problem_relations")
 }
 
 model ProblemVersion {
@@ -183,6 +357,7 @@ model ProblemVersion {
   problemId String
   version   Int
   content   Json
+  changelog String?
   createdAt DateTime @default(now())
 
   problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
@@ -191,48 +366,61 @@ model ProblemVersion {
   @@map("problem_versions")
 }
 
-model ProblemTag {
-  id        String @id @default(uuid())
-  problemId String
-  name      String
-
-  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
-
-  @@unique([problemId, name])
-  @@map("problem_tags")
-}
-
 // ========================================
-// User Progress & Activity
+// User Progress
 // ========================================
 
 model UserProblemProgress {
-  id        String   @id @default(uuid())
-  userId    String
-  problemId String
-  attempts  Int      @default(0)
-  solved    Boolean  @default(false)
-  bestTime  Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String         @id @default(uuid())
+  userId     String
+  problemId  String
+  status     ProgressStatus @default(NOT_STARTED)
+  attempts   Int            @default(0)
+  bestTimeMs Int?
+  lastAttemptAt DateTime?
+  startedAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
 
   @@unique([userId, problemId])
+  @@index([userId, status])
+  @@index([problemId, status])
   @@map("user_problem_progress")
+}
+
+model UserLearningProgress {
+  id            String         @id @default(uuid())
+  userId        String
+  topicId       String
+  status        ProgressStatus @default(NOT_STARTED)
+  progressPct   Int            @default(0) // 0-100
+  startedAt     DateTime?
+  completedAt   DateTime?
+  updatedAt     DateTime       @updatedAt
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic LearningTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topicId])
+  @@index([userId])
+  @@map("user_learning_progress")
 }
 
 model UserActivity {
   id        String       @id @default(uuid())
   userId    String
   type      ActivityType
+  problemId String?
   metadata  Json?
   createdAt DateTime     @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem? @relation(fields: [problemId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
+  @@index([problemId])
   @@map("user_activities")
 }
 
