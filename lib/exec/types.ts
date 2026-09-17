@@ -148,8 +148,18 @@ export interface ScenarioOutcome {
   trace?: ScenarioTrace;
   /** Density-matrix / unitary inspection data (when requested and affordable). */
   inspection?: ScenarioInspection;
+  /** Deterministic seed used for sampled counts, when one was applied. */
+  seed?: number;
   /** Present when inspection was requested but exceeded size caps. */
   inspectionUnavailable?: string;
+}
+
+/** Safe runtime environment versions captured per execution (Phase 6). */
+export interface RuntimeEnvironment {
+  python: string | null;
+  framework: { name: string; version: string | null };
+  simulator: { name: string; version: string | null };
+  numpy: string | null;
 }
 
 /** Raw result returned by the sandbox boundary. */
@@ -157,6 +167,11 @@ export interface SandboxResult {
   ok: boolean;
   /** Scenario outcomes keyed by scenario name. */
   outcomes: Record<string, ScenarioOutcome>;
+  /**
+   * Environment versions actually observed inside the runtime, when the
+   * runtime reported them. Absent for failed executions or older runs.
+   */
+  environment?: RuntimeEnvironment;
   stdout: string;
   stderr: string;
   durationMs: number;

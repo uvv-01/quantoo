@@ -21,6 +21,7 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 **Phase 3 — Problem & Content Engine** ✅
 **Phase 4 — Code Workspace, Execution & Judge** ✅
 **Phase 5 — Quantum Debugger & Execution Traces** ✅
+**Phase 6 — Quantum Semantic Observatory** ✅
 
 ### Phase 1 — Foundation
 - Next.js application with TypeScript strict mode
@@ -92,7 +93,21 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 - Snapshot scaling policy: qubit ceilings, snapshot subsampling beyond `EXEC_SNAPSHOT_MAX_STEPS`, payload caps for statevector/density-matrix/unitary
 - Comprehensive tests: diff/localization units, real-Qiskit runtime trace/inspection tests, debugger authorization and API tests, and Playwright E2E for correct/failed/error/privacy debugger flows
 
-**Not yet implemented:** noise models, transpilation, real hardware, projects, portfolio, AI tutor.
+### Phase 6 — Quantum Semantic Observatory
+- Semantic record extraction from every persisted execution artifact: canonical circuit (normalized gate names, real operation order), exact probabilities, sampled measurement frequencies, statevector evidence — missing data stays `null`, never fabricated
+- Layered semantic fingerprints (structural / operational / probability / measurement / resource / environment / combined), deterministic and independently inspectable — never source-text hashes
+- Policy-driven comparison engine (`statistical-default`, `exact`) across STRUCTURE / STATE / PROBABILITY / MEASUREMENT / RESOURCE / ENVIRONMENT with total-variation and Hellinger metrics, configurable thresholds, and shot-count-aware weak-evidence notes
+- Evidence-linked verdicts (`EQUIVALENT`, `BEHAVIORALLY_EQUIVALENT`, `RESOURCE_REGRESSION`, `ENVIRONMENT_DIFFERENT`, `DIFFERENT`, `INSUFFICIENT_EVIDENCE`) with precise language: "observationally equivalent under policy X", "first observed divergence" — never "formally verified" or "root cause"
+- Global-phase-invariant state comparison preserved from Phase 5; global-phase-only differences are never behavioral differences
+- Regression baselines per user/problem; comparisons against a baseline classify behavioral, resource, and environment changes as separate dimensions
+- Execution reproduction through the standard sandboxed pipeline (recorded source, shots, seed from the database) with mandatory evidence comparison before any "REPRODUCED" verdict
+- Versioned execution capsules (`quantoo.execution.v1`) with export and defensive Zod validation (size caps, depth limits, field bounds); import never executes code
+- Environment record captured inside the runtime (Python, Qiskit, Aer, NumPy, shots, seed) — safe technical metadata only
+- Semantic API namespace (`/api/semantic/executions`, `/compare`, `/reproduce`, `/capsules`, `/baselines`) with session auth, ownership enforcement, Zod validation, rate limits, and fully server-side verdict recomputation
+- Semantic Observer UI embedded in the workspace: execution selection, per-dimension evidence, baseline management, one-click reproduction, capsule download, and "Inspect at divergence" deep link into the Phase 5 debugger
+- Test coverage: statistics and canonical-form units, real-Qiskit comparison scenarios (equivalent representations, real behavioral differences, resource-only regressions, environment changes, reproduction), and real-database security tests (401s, cross-user isolation, malformed capsules, foreign baselines)
+
+**Not yet implemented:** cross-version execution farm, cross-framework execution, noise models, transpilation, real hardware, projects, portfolio, AI tutor.
 
 ## Architecture
 

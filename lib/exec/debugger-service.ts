@@ -148,7 +148,13 @@ async function findReferenceOutcome(
 
 function parseOutcomes(raw: Prisma.JsonValue | null): Record<string, ScenarioOutcome> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  const record = raw as Record<string, unknown>;
+  let record = raw as Record<string, unknown>;
+  // Phase 6 wraps the artifact as { outcomes, environment }; older rows
+  // stored the outcomes map at the top level. Both shapes are supported.
+  const nested = record.outcomes;
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    record = nested as Record<string, unknown>;
+  }
   const outcomes: Record<string, ScenarioOutcome> = {};
   for (const [name, value] of Object.entries(record)) {
     if (!value || typeof value !== "object" || Array.isArray(value)) continue;

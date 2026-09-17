@@ -103,6 +103,9 @@ export const RATE_LIMITS = {
   // Quantum execution is expensive: keep the per-user budget conservative.
   execution: { maxRequests: 20, windowSeconds: 10 * 60 } as RateLimitConfig, // 20 per 10 min
   draftSave: { maxRequests: 60, windowSeconds: 10 * 60 } as RateLimitConfig, // autosave headroom
+  // Semantic analysis (compare/reproduce): reproduction runs a real
+  // execution, so this shares the conservative execution budget.
+  semantic: { maxRequests: 20, windowSeconds: 10 * 60 } as RateLimitConfig,
 } as const;
 
 /**

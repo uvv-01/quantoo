@@ -44,6 +44,12 @@ export interface RunInput {
   problemId: string;
   sourceCode: string;
   shots?: number;
+  /**
+   * Optional deterministic seed for sampled measurements. Used by the
+   * Phase 6 reproduction flow (the recorded seed of the original run);
+   * the public run API does not accept client seeds.
+   */
+  seed?: number;
 }
 
 const MAX_SOURCE_BYTES = 50_000;
@@ -218,6 +224,8 @@ export async function runSubmission(
     scenarios,
     shots,
     limits,
+    ["density_matrix", "unitary"],
+    input.seed,
   );
 
   if (!sandbox.ok) {
@@ -269,7 +277,10 @@ export async function runSubmission(
       status: "SUCCEEDED",
       passed: judge ? judge.passed : null,
       judgeResult: judge ? (judge as unknown as import("@prisma/client").Prisma.InputJsonValue) : undefined,
-      executionResult: sanitizeOutcomesForStorage(sandbox.outcomes) as unknown as import("@prisma/client").Prisma.InputJsonValue,
+      executionResult: {
+        outcomes: sanitizeOutcomesForStorage(sandbox.outcomes),
+        environment: sandbox.environment ?? null,
+      } as unknown as import("@prisma/client").Prisma.InputJsonValue,
       durationMs,
       completedAt: new Date(),
     },
@@ -374,6 +385,7 @@ function sanitizeOutcomesForStorage(
     if (outcome.counts) {
       entry.counts = outcome.counts;
       entry.shots = outcome.shots;
+      if (typeof outcome.seed === "number") entry.seed = outcome.seed;
     }
     if (
       outcome.statevectorPairs &&

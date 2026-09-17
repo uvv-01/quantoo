@@ -49,9 +49,12 @@ interface DensityMatrixRow {
 export function QuantumDebugger({
   submissionId,
   open,
+  initialStep = null,
 }: {
   submissionId: string;
   open: boolean;
+  /** Step to open when loading (deep link from the semantic observer). */
+  initialStep?: number | null;
 }) {
   const [payload, setPayload] = useState<DebuggerPayload | null>(null);
   const [localization, setLocalization] = useState<FailureLocalization | null>(
@@ -83,9 +86,13 @@ export function QuantumDebugger({
       .then((data: { submission: DebuggerPayload; localization: FailureLocalization | null }) => {
         setPayload(data.submission);
         setLocalization(data.localization);
-        // Start at the failure point when the judge failed, else the end.
+        // Start at the requested step (deep link), else the failure point
+        // when the judge failed, else the end of the trace.
         const steps = data.submission.outcomes["submission"]?.trace?.steps;
-        const suggested = data.localization?.stepIndex;
+        const suggested =
+          initialStep !== null && initialStep !== undefined
+            ? initialStep
+            : data.localization?.stepIndex;
         setCurrentStep(
           suggested !== null && suggested !== undefined && steps
             ? Math.min(suggested, steps.length - 1)
@@ -103,7 +110,7 @@ export function QuantumDebugger({
         );
       });
     return () => controller.abort();
-  }, [open, submissionId]);
+  }, [open, submissionId, initialStep]);
 
   const outcome = payload?.outcomes["submission"] ?? null;
   // Derived load state: fetching until data or an error arrives.

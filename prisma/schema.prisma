@@ -93,37 +93,40 @@ enum SecurityEventType {
 // ========================================
 
 model User {
-  id             String    @id @default(uuid())
-  email          String    @unique
-  emailVerified  DateTime?
-  passwordHash   String
-  lastLoginAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  profile           Profile?
-  sessions          Session[]
-  verificationTokens EmailVerificationToken[]
-  passwordResetTokens PasswordResetToken[]
-  problemProgress   UserProblemProgress[]
-  activities        UserActivity[]
+  profile                   Profile?
+  sessions                  Session[]
+  verificationTokens        EmailVerificationToken[]
+  passwordResetTokens       PasswordResetToken[]
+  problemProgress           UserProblemProgress[]
+  activities                UserActivity[]
   dailyChallengeSubmissions DailyChallengeSubmission[]
-  securityEvents    SecurityEvent[]
-  learningProgress  UserLearningProgress[]
-  submissions       Submission[]
-  problemDrafts     ProblemDraft[]
+  securityEvents            SecurityEvent[]
+  learningProgress          UserLearningProgress[]
+  submissions               Submission[]
+  problemDrafts             ProblemDraft[]
+  semanticBaselines         SemanticBaseline[]
+  semanticComparisons       SemanticComparison[]
+  semanticReproductions     SemanticReproduction[]
 
   @@map("users")
 }
 
 model Session {
-  id           String   @id @default(uuid())
-  userId       String
-  tokenHash    String   @unique
-  ipAddress    String?
-  userAgent    String?
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -134,12 +137,12 @@ model Session {
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -149,12 +152,12 @@ model EmailVerificationToken {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -207,11 +210,11 @@ model Concept {
   name        String   @unique
   slug        String   @unique
   description String?
-  category    String?  // e.g. "foundations", "gates", "algorithms", "error-correction"
+  category    String? // e.g. "foundations", "gates", "algorithms", "error-correction"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  problems     ProblemConcept[]
+  problems       ProblemConcept[]
   learningTopics LearningTopicConcept[]
 
   @@index([category])
@@ -244,13 +247,13 @@ model LearningTopic {
   title       String
   slug        String   @unique
   description String?
-  category    String?  // e.g. "fundamentals", "gates", "circuits", "algorithms"
+  category    String? // e.g. "fundamentals", "gates", "circuits", "algorithms"
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  concepts   LearningTopicConcept[]
-  problems   LearningTopicProblem[]
+  concepts     LearningTopicConcept[]
+  problems     LearningTopicProblem[]
   userProgress UserLearningProgress[]
 
   @@index([slug])
@@ -259,13 +262,13 @@ model LearningTopic {
 }
 
 model LearningTopicConcept {
-  id            String @id @default(uuid())
-  topicId       String
-  conceptId     String
-  sortOrder     Int    @default(0)
+  id        String @id @default(uuid())
+  topicId   String
+  conceptId String
+  sortOrder Int    @default(0)
 
-  topic  LearningTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  concept Concept      @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  topic   LearningTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  concept Concept       @relation(fields: [conceptId], references: [id], onDelete: Cascade)
 
   @@unique([topicId, conceptId])
   @@map("learning_topic_concepts")
@@ -278,7 +281,7 @@ model LearningTopicProblem {
   sortOrder Int    @default(0)
 
   topic   LearningTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  problem Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  problem Problem       @relation(fields: [problemId], references: [id], onDelete: Cascade)
 
   @@unique([topicId, problemId])
   @@map("learning_topic_problems")
@@ -289,25 +292,25 @@ model LearningTopicProblem {
 // ========================================
 
 model Problem {
-  id               String          @id @default(uuid())
-  slug             String          @unique
-  title            String
-  shortDescription String
-  description      String          @db.Text
-  difficulty       ProblemDifficulty
-  status           ProblemStatus   @default(DRAFT)
-  estimatedMinutes Int?
-  prerequisites    String?         @db.Text  // Text list of prerequisite descriptions
-  learningObjectives String?       @db.Text  // JSON array of objectives
-  hints            Json?           // Structured hints array: [{content, order}]
-  solutionExplanation Json?        // Structured explanation: {approach, whyItWorks, concepts, commonMistakes, furtherLearning}
-  testSpecification Json?          // Future Judge contract: structured test cases
-  requirements     Json?           // Problem requirements: {qubits, gates, depth, etc.}
-  expectedOutcome  Json?           // What a correct solution achieves
-  starterCode      String?         @db.Text  // Versioned starter code for the workspace
-  publishedAt      DateTime?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id                  String            @id @default(uuid())
+  slug                String            @unique
+  title               String
+  shortDescription    String
+  description         String            @db.Text
+  difficulty          ProblemDifficulty
+  status              ProblemStatus     @default(DRAFT)
+  estimatedMinutes    Int?
+  prerequisites       String?           @db.Text // Text list of prerequisite descriptions
+  learningObjectives  String?           @db.Text // JSON array of objectives
+  hints               Json? // Structured hints array: [{content, order}]
+  solutionExplanation Json? // Structured explanation: {approach, whyItWorks, concepts, commonMistakes, furtherLearning}
+  testSpecification   Json? // Future Judge contract: structured test cases
+  requirements        Json? // Problem requirements: {qubits, gates, depth, etc.}
+  expectedOutcome     Json? // What a correct solution achieves
+  starterCode         String?           @db.Text // Versioned starter code for the workspace
+  publishedAt         DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   tags             ProblemTag[]
   concepts         ProblemConcept[]
@@ -315,10 +318,11 @@ model Problem {
   progress         UserProblemProgress[]
   activity         UserActivity[]
   learningTopics   LearningTopicProblem[]
-  relatedFrom      ProblemRelation[] @relation("fromProblem")
-  relatedTo        ProblemRelation[] @relation("toProblem")
+  relatedFrom      ProblemRelation[]      @relation("fromProblem")
+  relatedTo        ProblemRelation[]      @relation("toProblem")
   submissions      Submission[]
   drafts           ProblemDraft[]
+  SemanticBaseline SemanticBaseline[]
 
   @@index([difficulty])
   @@index([status])
@@ -352,10 +356,10 @@ model ProblemConcept {
 }
 
 model ProblemRelation {
-  id         String              @id @default(uuid())
-  fromId     String
-  toId       String
-  type       ProblemRelationType
+  id     String              @id @default(uuid())
+  fromId String
+  toId   String
+  type   ProblemRelationType
 
   fromProblem Problem @relation("fromProblem", fields: [fromId], references: [id], onDelete: Cascade)
   toProblem   Problem @relation("toProblem", fields: [toId], references: [id], onDelete: Cascade)
@@ -395,17 +399,18 @@ model Submission {
   sourceCode      String           @db.Text
   language        String           @default("python")
   status          SubmissionStatus @default(PENDING)
-  errorCode       String?          // Structured error category, e.g. SYNTAX_ERROR, TIMEOUT
-  errorMessage    String?          // Safe, user-facing error message (no stack traces)
-  passed          Boolean?         // Judge verdict (null = not yet judged)
-  judgeResult     Json?            // Full JudgeResult {passed, checks, failures, summary}
-  executionResult Json?            // Execution artifact {circuit, counts, probabilities, ...}
+  errorCode       String? // Structured error category, e.g. SYNTAX_ERROR, TIMEOUT
+  errorMessage    String? // Safe, user-facing error message (no stack traces)
+  passed          Boolean? // Judge verdict (null = not yet judged)
+  judgeResult     Json? // Full JudgeResult {passed, checks, failures, summary}
+  executionResult Json? // Execution artifact {circuit, counts, probabilities, ...}
   durationMs      Int?
   createdAt       DateTime         @default(now())
   completedAt     DateTime?
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem           Problem            @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  semanticBaselines SemanticBaseline[]
 
   @@index([userId, createdAt])
   @@index([problemId, createdAt])
@@ -433,19 +438,80 @@ model ProblemDraft {
 }
 
 // ========================================
-// User Progress
+// Quantum Semantic Observatory (Phase 6)
 // ========================================
 
+/// A baseline execution a user designates for later comparisons.
+/// One baseline per user per problem; re-designating replaces it.
+model SemanticBaseline {
+  id           String   @id @default(uuid())
+  userId       String
+  problemId    String
+  submissionId String
+  policyName   String   @default("statistical-default")
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem    Problem    @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+  @@index([problemId])
+  @@index([submissionId])
+  @@map("semantic_baselines")
+}
+
+/// Persisted evidence of a comparison between two executions.
+/// Comparison verdicts are always recomputed server-side; this table
+/// stores the structured result for history and evidence links.
+model SemanticComparison {
+  id            String   @id @default(uuid())
+  userId        String
+  recordAId     String // submission id of execution A
+  recordBId     String // submission id of execution B
+  policyName    String
+  overallStatus String
+  result        Json // full SemanticComparison payload
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([recordAId])
+  @@index([recordBId])
+  @@map("semantic_comparisons")
+}
+
+/// Records of reproduction attempts (original submission -> new run).
+model SemanticReproduction {
+  id                       String   @id @default(uuid())
+  userId                   String
+  originalSubmissionId     String
+  reproductionSubmissionId String
+  policyName               String
+  overallStatus            String
+  result                   Json // full ReproductionReport payload
+  createdAt                DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([originalSubmissionId])
+  @@map("semantic_reproductions")
+}
+
 model UserProblemProgress {
-  id         String         @id @default(uuid())
-  userId     String
-  problemId  String
-  status     ProgressStatus @default(NOT_STARTED)
-  attempts   Int            @default(0)
-  bestTimeMs Int?
+  id            String         @id @default(uuid())
+  userId        String
+  problemId     String
+  status        ProgressStatus @default(NOT_STARTED)
+  attempts      Int            @default(0)
+  bestTimeMs    Int?
   lastAttemptAt DateTime?
-  startedAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  startedAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
@@ -457,14 +523,14 @@ model UserProblemProgress {
 }
 
 model UserLearningProgress {
-  id            String         @id @default(uuid())
-  userId        String
-  topicId       String
-  status        ProgressStatus @default(NOT_STARTED)
-  progressPct   Int            @default(0) // 0-100
-  startedAt     DateTime?
-  completedAt   DateTime?
-  updatedAt     DateTime       @updatedAt
+  id          String         @id @default(uuid())
+  userId      String
+  topicId     String
+  status      ProgressStatus @default(NOT_STARTED)
+  progressPct Int            @default(0) // 0-100
+  startedAt   DateTime?
+  completedAt DateTime?
+  updatedAt   DateTime       @updatedAt
 
   user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   topic LearningTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
@@ -513,7 +579,7 @@ model DailyChallengeSubmission {
   solveTime   Int?
   submittedAt DateTime @default(now())
 
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   challenge DailyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, challengeId])

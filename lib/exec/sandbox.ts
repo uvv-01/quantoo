@@ -65,6 +65,8 @@ export async function executeInSandbox(
   shots: number,
   limits = getExecutionLimits(),
   inspect: string[] = ["density_matrix", "unitary"],
+  /** Optional deterministic seed for sampled measurements (reproduction). */
+  seed?: number,
 ): Promise<SandboxResult> {
   const mode = getSandboxMode();
   if (mode === "disabled") {
@@ -74,8 +76,8 @@ export async function executeInSandbox(
   try {
     const result =
       mode === "docker"
-        ? await runDocker(sourceCode, scenarios, shots, limits, inspect)
-        : await runHostFallback(sourceCode, scenarios, shots, limits, inspect);
+        ? await runDocker(sourceCode, scenarios, shots, limits, inspect, seed)
+        : await runHostFallback(sourceCode, scenarios, shots, limits, inspect, seed);
     return { ...result, durationMs: Date.now() - started };
   } catch (error) {
     logger.error("sandbox execution failed", {
@@ -96,12 +98,14 @@ async function runDocker(
   shots: number,
   limits: ExecutionLimitsParam,
   inspect: string[],
+  seed?: number,
 ): Promise<Omit<SandboxResult, "durationMs">> {
   const payload = JSON.stringify({
     sourceCode,
     scenarios: scenarios.map((name) => ({ name })),
     shots,
     inspect,
+    seed: typeof seed === "number" && Number.isInteger(seed) && seed >= 0 ? seed : undefined,
     maxSnapshotSteps: limits.maxSnapshotSteps,
     maxDensityQubits: limits.maxDensityQubits,
     maxUnitaryQubits: limits.maxUnitaryQubits,
@@ -145,12 +149,14 @@ async function runHostFallback(
   shots: number,
   limits: ExecutionLimitsParam,
   inspect: string[],
+  seed?: number,
 ): Promise<Omit<SandboxResult, "durationMs">> {
   const payload = JSON.stringify({
     sourceCode,
     scenarios: scenarios.map((name) => ({ name })),
     shots,
     inspect,
+    seed: typeof seed === "number" && Number.isInteger(seed) && seed >= 0 ? seed : undefined,
     maxSnapshotSteps: limits.maxSnapshotSteps,
     maxDensityQubits: limits.maxDensityQubits,
     maxUnitaryQubits: limits.maxUnitaryQubits,
@@ -357,6 +363,7 @@ function parseRuntimePayload(stdout: string): Omit<SandboxResult, "durationMs"> 
       return {
         ok: true,
         outcomes: payload.outcomes as SandboxResult["outcomes"],
+        environment: parseEnvironment(payload.environment),
         stdout: typeof payload.stdout === "string" ? payload.stdout : "",
         stderr: "",
       };
@@ -372,6 +379,27 @@ function parseRuntimePayload(stdout: string): Omit<SandboxResult, "durationMs"> 
   } catch {
     return null;
   }
+}
+
+function parseEnvironment(raw: unknown): SandboxResult["environment"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const env = raw as Record<string, unknown>;
+  const str = (value: unknown): string | null =>
+    typeof value === "string" && value.length <= 64 ? value : null;
+  const component = (value: unknown): { name: string; version: string | null } => {
+    if (!value || typeof value !== "object") return { name: "unknown", version: null };
+    const c = value as Record<string, unknown>;
+    return {
+      name: str(c.name) ?? "unknown",
+      version: str(c.version),
+    };
+  };
+  return {
+    python: str(env.python),
+    framework: component(env.framework),
+    simulator: component(env.simulator),
+    numpy: str(env.numpy),
+  };
 }
 
 function emptyFailure(

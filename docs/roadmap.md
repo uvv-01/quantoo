@@ -83,7 +83,41 @@
   interactive breakpoints belong to a later phase)
 - [ ] Bloch sphere rendering (deferred)
 
-## Phase 6: Noise, Optimization & Hardware-Aware Simulation
+## Phase 6: Quantum Semantic Observatory (delivered)
+
+- [x] Semantic record extraction from persisted execution artifacts
+  (probabilities, measurements, statevector evidence, canonical circuit)
+- [x] Layered semantic fingerprint (structural / operational / probability /
+  measurement / resource / environment / combined — independently
+  inspectable, never source-text hashing)
+- [x] Canonical circuit representation with gate-name normalization;
+  operations never reordered (order is semantically significant)
+- [x] Statistical comparison (total variation & Hellinger distance with
+  configurable thresholds, shot-count awareness, weak-evidence notes)
+- [x] Comparison policies (statistical-default, exact) with per-dimension
+  inclusion and explicit NOT_COMPARED semantics
+- [x] Structured evidence-linked verdicts (EQUIVALENT,
+  BEHAVIORALLY_EQUIVALENT, RESOURCE_REGRESSION, ENVIRONMENT_DIFFERENT,
+  DIFFERENT, INSUFFICIENT_EVIDENCE) — global-phase preserved from Phase 5
+- [x] First observed divergence localization with debugger deep link
+  ("Inspect at divergence")
+- [x] Regression baselines per user/problem with policy-bound comparisons
+- [x] Execution reproduction through the standard sandboxed pipeline
+  (recorded source/shots/seed; evidence comparison required — a
+  successful run alone is never "reproduced")
+- [x] Versioned execution capsules (quantoo.execution.v1) with export and
+  defensive validation (size/depth/schema caps; import never executes)
+- [x] Environment record from the runtime (Python/Qiskit/Aer/NumPy,
+  shots, seed) — safe metadata only, nulls never guessed
+- [x] Semantic API namespace (/api/semantic/*) with auth, ownership,
+  Zod validation, rate limits, and server-side verdict recomputation
+- [x] Semantic Observer UI inside the workspace with baseline and
+  reproduction controls and capsule export
+- [ ] Cross-version execution farm (Phase 7 — Compatibility Lab)
+- [ ] Cross-framework execution (Phase 7+; abstraction ready)
+- [ ] Noise-aware semantic analysis (later phase)
+
+## Phase 7: Noise, Optimization & Hardware-Aware Simulation
 
 - [ ] Noise model simulation
 - [ ] Decoherence modeling

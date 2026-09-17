@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CodeEditor } from "@/components/workspace/code-editor";
 import { QuantumDebugger } from "@/components/workspace/quantum-debugger";
+import { SemanticObserver } from "@/components/workspace/semantic-observer";
 import { DIFFICULTY_CONFIG } from "@/lib/constants";
 import type { RunResponse } from "@/lib/exec/types";
 
@@ -307,6 +308,10 @@ export function QuantumWorkspace({
                 open={debuggerOpen}
               />
             </>
+          )}
+
+          {isAuthenticated && (
+            <SemanticObserver problemSlug={problem.slug} />
           )}
 
           {phase === "idle" && !result && (

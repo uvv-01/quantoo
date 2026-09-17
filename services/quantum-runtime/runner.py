@@ -480,11 +480,36 @@ def _has_measurements(circuit) -> bool:
     )
 
 
+def _environment_metadata() -> dict:
+    """Safe runtime environment versions for the execution record.
+
+    Only non-sensitive technical metadata: interpreter and library
+    versions. Never environment variables, paths, or credentials.
+    Missing components report null rather than a guess.
+    """
+    import platform
+
+    def _version(module_name: str):
+        try:
+            module = importlib.import_module(module_name)
+        except Exception:  # noqa: BLE001 - optional component
+            return None
+        return getattr(module, "__version__", None)
+
+    return {
+        "python": platform.python_version(),
+        "framework": {"name": "qiskit", "version": _version("qiskit")},
+        "simulator": {"name": "qiskit_aer", "version": _version("qiskit_aer")},
+        "numpy": _version("numpy"),
+    }
+
+
 def _simulate(
     circuit,
     scenario: str,
     shots: int,
     inspect: list,
+    seed=None,
     max_snapshot_steps: int = MAX_SNAPSHOT_STEPS,
     max_density_qubits: int = MAX_DENSITY_MATRIX_QUBITS,
     max_unitary_qubits: int = MAX_UNITARY_QUBITS,
@@ -496,8 +521,18 @@ def _simulate(
     outcome: dict = {"scenario": scenario, "circuit": _circuit_metadata(circuit)}
 
     if _has_measurements(circuit):
+        # The seed makes sampled counts reproducible; without one Aer's
+        # entropy source is used (the artifact records seed as absent).
+        run_kwargs: dict = {"shots": shots}
+        if seed is not None:
+            run_kwargs["seed_simulator"] = seed
         simulator = AerSimulator()
-        result = simulator.run(circuit, shots=shots).result()
+        result = simulator.run(circuit, **run_kwargs).result()
+        counts = result.get_counts(0)
+        outcome["counts"] = {key: int(value) for key, value in counts.items()}
+        outcome["shots"] = shots
+        if seed is not None:
+            outcome["seed"] = seed
         counts = result.get_counts(0)
         outcome["counts"] = {key: int(value) for key, value in counts.items()}
         outcome["shots"] = shots
@@ -563,6 +598,11 @@ def main() -> int:
         name for name in inspect
         if name in ("density_matrix", "unitary")
     ]
+
+    # Optional deterministic seed for sampled measurements (reproduction).
+    seed = request.get("seed")
+    if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
+        seed = None
 
     # Debugger snapshot policy overrides. Values arrive from clamped
     # environment configuration and are clamped again to hard caps here.
@@ -634,6 +674,7 @@ def main() -> int:
                 scenario_name,
                 shots,
                 inspect,
+                seed,
                 max_snapshot_steps,
                 max_density_qubits,
                 max_unitary_qubits,
@@ -649,6 +690,7 @@ def main() -> int:
     payload = {
         "ok": True,
         "outcomes": outcomes,
+        "environment": _environment_metadata(),
         "stdout": user_stdout,
         "stderr": "",
     }
