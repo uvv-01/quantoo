@@ -100,13 +100,27 @@ or AI system is involved in deciding correctness.
 Security-relevant automated tests:
 
 - `tests/runtime/runner.test.ts` — import allowlist, builtin removal,
-  path sanitization, qubit limits (real interpreter).
+  path sanitization, qubit limits (real interpreter), plus Phase 5 trace
+  and inspection limits (density-matrix / unitary caps, snapshot
+  subsampling).
 - `tests/exec/security.test.ts` — mode gating, disabled-mode refusal,
   no stack traces in failures.
 - `tests/exec/limits-validation.test.ts` — limit clamping, request
   validation, slug injection rejection.
 - `tests/judge/judge.test.ts` — judge correctness incl. phase invariance
   and malformed-spec handling.
+- `tests/debugger/debugger-security.test.ts` and
+  `tests/debugger/api.test.ts` — debugger payload sanitization,
+  identifier validation, ownership enforcement: an authenticated user
+  who does not own a submission gets the same 404 as a missing one, and
+  unauthenticated requests are rejected with 401.
+- `e2e/debugger.spec.ts` — browser-level privacy check that debugger
+  endpoints reject cookie-less and foreign-user access.
+
+Phase 5 does not change the isolation boundary: the debugger is a
+consumer of the persisted artifact. No debugger feature executes code
+in the web process or the browser, and inspection payloads are subject
+to the same output-size caps as every other artifact field.
 
 ## Known limitations
 

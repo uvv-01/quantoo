@@ -38,6 +38,53 @@ export type ExecutionErrorCode =
   | "INTERNAL_ERROR";
 
 // ========================================
+// Debugger trace (Phase 5)
+// ========================================
+
+/**
+ * One gate-level trace step. Ordering is the circuit's actual operation
+ * order. `afterState` is the exact statevector immediately after the step
+ * (pre-measurement state for measure steps) when the runtime snapshot
+ * policy allows it; it is absent rather than fabricated otherwise.
+ */
+export interface TraceStep {
+  stepIndex: number;
+  operationIndex: number;
+  gateName: string;
+  qubits: number[];
+  clbits: number[];
+  params: number[];
+  measurement: boolean;
+  afterState?: [number, number][];
+}
+
+/** Which steps carry exact state snapshots, and why. */
+export interface SnapshotPolicy {
+  available: boolean;
+  representation: string;
+  subsampled: boolean;
+  stride: number;
+  /** Human-readable limitation note when data is partial or unavailable. */
+  reason: string | null;
+}
+
+/** Gate trace for one scenario outcome. */
+export interface ScenarioTrace {
+  steps: TraceStep[];
+  policy: SnapshotPolicy;
+}
+
+/** Optional density-matrix / unitary inspection (strictly size-capped). */
+export interface ScenarioInspection {
+  densityMatrixPairs?: [number, number][];
+  densityMatrixDim?: number;
+  densityMatrixUnavailable?: string;
+  unitaryPairs?: [number, number][];
+  unitaryDim?: number;
+  unitaryUnavailable?: string;
+}
+
+// ========================================
 // Resource policy
 // ========================================
 
@@ -54,6 +101,12 @@ export interface ExecutionLimits {
   maxOutputBytes: number;
   /** Maximum source code size in bytes. */
   maxSourceBytes: number;
+  /** Steps that may carry exact state snapshots before subsampling (debugger). */
+  maxSnapshotSteps: number;
+  /** Maximum qubits for density-matrix inspection (debugger). */
+  maxDensityQubits: number;
+  /** Maximum qubits for unitary inspection (debugger). */
+  maxUnitaryQubits: number;
 }
 
 // ========================================
@@ -86,6 +139,17 @@ export interface ScenarioOutcome {
   counts?: Record<string, number>;
   /** Number of shots used for counts, when applicable. */
   shots?: number;
+  /**
+   * Exact computational-basis probabilities derived from the statevector.
+   * Only present for measurement-free circuits; never fabricated from shots.
+   */
+  probabilities?: Record<string, number>;
+  /** Gate-level trace with per-step state snapshots (when available). */
+  trace?: ScenarioTrace;
+  /** Density-matrix / unitary inspection data (when requested and affordable). */
+  inspection?: ScenarioInspection;
+  /** Present when inspection was requested but exceeded size caps. */
+  inspectionUnavailable?: string;
 }
 
 /** Raw result returned by the sandbox boundary. */
@@ -146,4 +210,63 @@ export interface RunResponse {
     stdout: string;
     stderr: string;
   } | null;
+}
+
+// ========================================
+// Debugger API contracts (Phase 5)
+// ========================================
+
+/**
+ * Debugger payload for one submission. Everything in it comes from the
+ * persisted execution artifact; nothing is fabricated client- or
+ * server-side. Limitations are explicit (null + reason strings).
+ */
+export interface DebuggerPayload {
+  submissionId: string;
+  problemSlug: string;
+  status: ExecutionStatus;
+  errorCode: string | null;
+  errorMessage: string | null;
+  judge: JudgeResult | null;
+  /** Scenario name -> outcome as persisted (traces and snapshots included). */
+  outcomes: Record<string, ScenarioOutcome>;
+  /** Which scenarios were persisted with full traces, and which were not. */
+  traceAvailability: Record<
+    string,
+    { trace: boolean; snapshots: boolean; reason: string | null }
+  >;
+}
+
+// ========================================
+// Quantum Diff (reference comparison foundation)
+// ========================================
+
+/** Categories of meaningful divergence between two executions. */
+export type DiffCategory =
+  | "STRUCTURE"
+  | "STATE"
+  | "PROBABILITY"
+  | "MEASUREMENT"
+  | "RESOURCE";
+
+/** A single divergence observation, always evidence-based. */
+export interface DiffFinding {
+  category: DiffCategory;
+  /** Factual statement of what differs, using observed values. */
+  message: string;
+  /** Trace step (student execution) where the divergence was first detected, when applicable. */
+  stepIndex?: number;
+  observed?: unknown;
+  reference?: unknown;
+}
+
+/** Result of comparing a student execution against a reference execution. */
+export interface QuantumDiff {
+  /** Index of the first step where the executions diverge, when trace-level. */
+  firstDivergenceStep: number | null;
+  /** Steps (student ordering) that agree, before the first divergence. */
+  agreeingSteps: number;
+  findings: DiffFinding[];
+  /** True when the two executions are equivalent on every compared aspect. */
+  equivalent: boolean;
 }

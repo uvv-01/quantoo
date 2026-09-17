@@ -20,6 +20,7 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 **Phase 2 — Authentication & Security** ✅
 **Phase 3 — Problem & Content Engine** ✅
 **Phase 4 — Code Workspace, Execution & Judge** ✅
+**Phase 5 — Quantum Debugger & Execution Traces** ✅
 
 ### Phase 1 — Foundation
 - Next.js application with TypeScript strict mode
@@ -76,9 +77,22 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 - Execution result UI: verdicts, per-check explanations, circuit metrics, measurement counts, program output
 - Runtime, judge, sandbox security, and validation test suites (runner tests skip gracefully when the runtime is absent)
 
-**Not yet implemented:** advanced debugger (breakpoints, time machine), noise models, transpilation, real hardware, projects, portfolio, skill graph, AI tutor.
+**Not yet implemented:** noise models, transpilation, real hardware, projects, portfolio, skill graph, AI tutor.
 
-**Not yet implemented:** Code execution, quantum simulation, debugger, real hardware, projects, portfolio, AI tutor.
+### Phase 5 — Quantum Debugger & Execution Traces
+- Gate-level execution trace persisted with every successful run (`TraceStep` list preserving real operation ordering)
+- Quantum Time Machine: first/previous/next/last navigation, step scrubber, play/pause, reset — all state views follow the selected step
+- State inspection from exact statevector snapshots: basis state, amplitude (real/imaginary), magnitude, probability, and phase with global-phase normalization and careful handling of near-zero amplitudes
+- Exact probabilities (derived from the actual statevector) kept strictly distinct from sampled measurement frequencies
+- Interactive circuit view: qubits/classical bits, gate positions, measurements, executed vs upcoming operations, accessible current-step indicators (position, borders, labels — never color alone)
+- Failure localization: judge failures map to trace regions with evidence-based language ("Failure observed after step N.") and a one-click "open debugger near step" from the results panel
+- Reference-comparison foundation (Quantum Diff): STRUCTURE / STATE / PROBABILITY / MEASUREMENT / RESOURCE categories with global-phase-invariant state similarity and probability tolerance — never source-text equality
+- Debugger modes (Beginner / Developer / Research) with graceful "unavailable for this execution" handling; Research exposes density matrix and unitary views under strict size caps
+- Debugger API (`/api/executions/[id]`, `/api/executions/[id]/trace`, `/api/submissions/[id]/debug`) with session auth and ownership enforcement (foreign resources indistinguishable from missing ones)
+- Snapshot scaling policy: qubit ceilings, snapshot subsampling beyond `EXEC_SNAPSHOT_MAX_STEPS`, payload caps for statevector/density-matrix/unitary
+- Comprehensive tests: diff/localization units, real-Qiskit runtime trace/inspection tests, debugger authorization and API tests, and Playwright E2E for correct/failed/error/privacy debugger flows
+
+**Not yet implemented:** noise models, transpilation, real hardware, projects, portfolio, AI tutor.
 
 ## Architecture
 
@@ -110,9 +124,12 @@ Quantum execution (Phase 4):
   Workspace UI → Execution API → Sandbox boundary → Docker container
        ↓
   Qiskit/Aer runtime → Execution artifact → Quantum Judge → Verdict
-
-Future (Phase 5+):
-  Quantum Debugger → Noise Engine → Transpilation → Real QPU → Portfolio
+       ↓
+Quantum debugging (Phase 5):
+  Execution artifact → Gate trace + state snapshots → Debugger API
+       ↓
+  Time Machine UI (circuit view, state/amplitude/phase inspection,
+  failure localization, reference comparison)
 ```
 
 See [docs/architecture/](docs/architecture/) for detailed documentation.
@@ -185,7 +202,7 @@ The app runs at `http://localhost:3000`.
 | `npm run format:check` | Check formatting |
 | `npx prisma studio` | Open Prisma Studio |
 | `docker build -t quantoo/quantum-runtime:latest services/quantum-runtime` | Build the sandbox runtime image |
-| `docker network create quantoo-sandbox` | Create the isolated sandbox network |
+| `docker network create --internal quantoo-sandbox` | Create the isolated sandbox network (no egress) |
 
 ### Environment Variables
 
@@ -290,7 +307,7 @@ quantoo/
 | 2 | Authentication & Security | ✅ Complete |
 | 3 | Problem & Content Engine | ✅ Complete |
 | 4 | Code Workspace + Execution + Judge | ✅ Complete |
-| 5 | Quantum Debugger | Planned |
+| 5 | Quantum Debugger | ✅ Complete |
 | 6 | Noise, Optimization & Hardware-Aware Simulation | Planned |
 | 7 | Real Hardware + Transpilation | Planned |
 | 8 | Projects + Portfolio + Skill Intelligence | Planned |

@@ -105,7 +105,57 @@ describe("judgeSubmission", () => {
         submission: measuredOutcome({ "0": 500, "1": 500 }, 1000, 1),
       });
       expect(result.passed).toBe(false);
-      expect(result.checks[0].message).toContain("measurements");
+      // No trace snapshots either: the state simply was not produced.
+      expect(result.checks[0].message).toContain("was not produced");
+    });
+
+    it("evaluates the pre-measurement state from trace snapshots", () => {
+      // H on |0>: (|0> + |1>)/sqrt(2), then measured. The exact
+      // pre-measurement state comes from the runtime trace snapshot.
+      const measuredWithTrace = measuredOutcome(
+        { "0": 512, "1": 488 },
+        1000,
+        1,
+      );
+      measuredWithTrace.trace = {
+        policy: {
+          available: true,
+          representation: "statevector",
+          subsampled: false,
+          stride: 1,
+          reason: null,
+        },
+        steps: [
+          {
+            stepIndex: 0,
+            operationIndex: 0,
+            gateName: "h",
+            qubits: [0],
+            clbits: [],
+            params: [],
+            measurement: false,
+            afterState: [
+              [Math.SQRT1_2, 0],
+              [Math.SQRT1_2, 0],
+            ],
+          },
+          {
+            stepIndex: 1,
+            operationIndex: 1,
+            gateName: "measure",
+            qubits: [0],
+            clbits: [0],
+            params: [],
+            measurement: true,
+            afterState: [
+              [Math.SQRT1_2, 0],
+              [Math.SQRT1_2, 0],
+            ],
+          },
+        ],
+      };
+      const result = judgeSubmission([stateSpec], { submission: measuredWithTrace });
+      expect(result.checks[0].status).toBe("PASS");
     });
 
     it("fails when the amplitude count mismatches", () => {

@@ -21,6 +21,7 @@
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
+import { closeSync, openSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -63,6 +64,7 @@ export async function executeInSandbox(
   scenarios: string[],
   shots: number,
   limits = getExecutionLimits(),
+  inspect: string[] = ["density_matrix", "unitary"],
 ): Promise<SandboxResult> {
   const mode = getSandboxMode();
   if (mode === "disabled") {
@@ -72,8 +74,8 @@ export async function executeInSandbox(
   try {
     const result =
       mode === "docker"
-        ? await runDocker(sourceCode, scenarios, shots, limits)
-        : await runHostFallback(sourceCode, scenarios, shots, limits);
+        ? await runDocker(sourceCode, scenarios, shots, limits, inspect)
+        : await runHostFallback(sourceCode, scenarios, shots, limits, inspect);
     return { ...result, durationMs: Date.now() - started };
   } catch (error) {
     logger.error("sandbox execution failed", {
@@ -93,33 +95,41 @@ async function runDocker(
   scenarios: string[],
   shots: number,
   limits: ExecutionLimitsParam,
+  inspect: string[],
 ): Promise<Omit<SandboxResult, "durationMs">> {
   const payload = JSON.stringify({
     sourceCode,
     scenarios: scenarios.map((name) => ({ name })),
     shots,
+    inspect,
+    maxSnapshotSteps: limits.maxSnapshotSteps,
+    maxDensityQubits: limits.maxDensityQubits,
+    maxUnitaryQubits: limits.maxUnitaryQubits,
   });
+  // The request is attached to the container's stdin (-i); the runtime
+  // emits exactly one JSON result line on stdout.
+  const args = [
+    "run",
+    "--rm",
+    "-i",
+    "--network", SANDBOX_NETWORK,
+    "--cpus", "1",
+    "--memory", `${limits.maxMemoryMb}m`,
+    "--pids-limit", "128",
+    "--read-only",
+    "--security-opt", "no-new-privileges",
+    "--cap-drop", "ALL",
+    "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
+    "-e", "PYTHONUNBUFFERED=1",
+    RUNTIME_IMAGE,
+  ];
   const tmp = await mkdtemp(path.join(tmpdir(), "quantoo-exec-"));
   const reqPath = path.join(tmp, "request.json");
   try {
     await writeFile(reqPath, payload, "utf8");
-    const args = [
-      "run",
-      "--rm",
-      "--network", SANDBOX_NETWORK,
-      "--cpus", "1",
-      "--memory", `${limits.maxMemoryMb}m`,
-      "--pids-limit", "128",
-      "--read-only",
-      "--security-opt", "no-new-privileges",
-      "--cap-drop", "ALL",
-      "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
-      "-e", "PYTHONUNBUFFERED=1",
-      // Explicit, minimal environment: no application secrets are passed.
-      "-v", `${reqPath}:/app/request.json:ro`,
-      RUNTIME_IMAGE,
-    ];
-    return await spawnWithLimits("docker", args, payload, limits, "SANDBOX_ERROR");
+    return await spawnWithLimits("docker", args, payload, limits, "SANDBOX_ERROR", {
+      stdinFilePath: reqPath,
+    });
   } finally {
     await rm(tmp, { recursive: true, force: true }).catch(() => {});
   }
@@ -134,11 +144,16 @@ async function runHostFallback(
   scenarios: string[],
   shots: number,
   limits: ExecutionLimitsParam,
+  inspect: string[],
 ): Promise<Omit<SandboxResult, "durationMs">> {
   const payload = JSON.stringify({
     sourceCode,
     scenarios: scenarios.map((name) => ({ name })),
     shots,
+    inspect,
+    maxSnapshotSteps: limits.maxSnapshotSteps,
+    maxDensityQubits: limits.maxDensityQubits,
+    maxUnitaryQubits: limits.maxUnitaryQubits,
   });
   const args = [
     "-I", // isolated mode: ignore user site-packages
@@ -172,6 +187,13 @@ type ExecutionLimitsParam = ExecutionLimits;
 
 interface SpawnOptions {
   extraEnv?: Record<string, string>;
+  /**
+   * Provide the child's stdin from this file instead of a pipe. The
+   * Docker CLI does not reliably forward a Node pipe to the container's
+   * stdin on Windows, so the docker mode writes the request to a temp
+   * file and hands the file descriptor to the process.
+   */
+  stdinFilePath?: string;
 }
 
 async function spawnWithLimits(
@@ -183,8 +205,12 @@ async function spawnWithLimits(
   options: SpawnOptions = {},
 ): Promise<Omit<SandboxResult, "durationMs">> {
   return new Promise((resolve) => {
+    const stdinFd =
+      options.stdinFilePath !== undefined
+        ? openSync(options.stdinFilePath, "r")
+        : null;
     const child: ChildProcess = spawn(command, args, {
-      stdio: ["pipe", "pipe", "pipe"],
+      stdio: [stdinFd !== null ? stdinFd : "pipe", "pipe", "pipe"],
       env: options.extraEnv
         ? ({ ...options.extraEnv } as NodeJS.ProcessEnv)
         : process.env,
@@ -209,13 +235,20 @@ async function spawnWithLimits(
       if (settled) return;
       settled = true;
       clearTimeout(killTimer);
+      if (stdinFd !== null) {
+        try {
+          closeSync(stdinFd);
+        } catch {
+          // Already closed.
+        }
+      }
       resolve(result);
     };
 
     const stdout = child.stdout;
     const stderr = child.stderr;
     const stdin = child.stdin;
-    if (!stdout || !stderr || !stdin) {
+    if (!stdout || !stderr || (stdinFd === null && !stdin)) {
       finish(
         emptyFailure(
           sandboxErrorCode,
@@ -303,12 +336,14 @@ async function spawnWithLimits(
       finish(parsed);
     });
 
-    stdin.on("error", () => {
-      // The runtime may exit before reading all input; the close handler
-      // will resolve the result.
-    });
-    stdin.write(payload);
-    stdin.end();
+    if (stdinFd === null && stdin) {
+      stdin.on("error", () => {
+        // The runtime may exit before reading all input; the close handler
+        // will resolve the result.
+      });
+      stdin.write(payload);
+      stdin.end();
+    }
   });
 }
 

@@ -18,6 +18,9 @@ export const LIMIT_CEILINGS = {
   maxMemoryMb: 1_024,
   maxOutputBytes: 64_000,
   maxSourceBytes: 100_000,
+  maxSnapshotSteps: 128,
+  maxDensityQubits: 8,
+  maxUnitaryQubits: 6,
 } as const;
 
 /** Lower bounds so configuration cannot produce a broken/zero limit. */
@@ -30,6 +33,9 @@ export const LIMIT_FLOORS = {
   maxMemoryMb: 128,
   maxOutputBytes: 1_000,
   maxSourceBytes: 1_000,
+  maxSnapshotSteps: 1,
+  maxDensityQubits: 1,
+  maxUnitaryQubits: 1,
 } as const;
 
 function clampInt(
@@ -68,6 +74,21 @@ export function getExecutionLimits(): ExecutionLimits {
       process.env.EXEC_MAX_SOURCE_BYTES,
       50_000,
       "maxSourceBytes",
+    ),
+    maxSnapshotSteps: clampInt(
+      process.env.EXEC_SNAPSHOT_MAX_STEPS,
+      32,
+      "maxSnapshotSteps",
+    ),
+    maxDensityQubits: clampInt(
+      process.env.EXEC_DENSITY_MAX_QUBITS,
+      4,
+      "maxDensityQubits",
+    ),
+    maxUnitaryQubits: clampInt(
+      process.env.EXEC_UNITARY_MAX_QUBITS,
+      3,
+      "maxUnitaryQubits",
     ),
   };
 }

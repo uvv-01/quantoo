@@ -1,109 +1,87 @@
-# Quantum Runtime — Developer Guide
+# Quantum Runtime Setup
 
-How to set up, test, and troubleshoot the quantum execution runtime.
+The quantum runtime executes user-submitted quantum programs in an
+isolated Python environment. The same `runner.py` serves both execution
+paths (local dev and Docker sandbox); only the isolation boundary
+differs.
 
-## Layout
+## Runtime components
 
-```text
-services/quantum-runtime/
-├── runner.py          # sandbox-side executor (stdin JSON → stdout JSON)
-├── requirements.txt   # pinned Python dependencies
-└── Dockerfile         # production sandbox image
+`services/quantum-runtime/`:
+
+| File | Purpose |
+| --- | --- |
+| `runner.py` | The runtime: restricted imports, request parsing, circuit execution, trace + snapshot capture, inspection (density matrix / unitary), structured JSON output |
+| `requirements.txt` | Pinned runtime dependencies |
+| `Dockerfile` | Hardened container image for the sandbox path |
+
+Dependencies (Python 3.11):
+
+- `qiskit` — circuit model + simulation orchestration
+- `qiskit-aer` — statevector simulation and shot-based sampling
+- `numpy` — numeric support used by Qiskit
+
+No other packages are installed in the image; dynamic installation is
+impossible (no network, no pip access from user code).
+
+## Local development (host-fallback mode)
+
+For development without Docker, set:
+
+```bash
+QUANTOO_SANDBOX_MODE=host-fallback
 ```
 
-## Local setup (host fallback)
+The sandbox boundary spawns `python runner.py` directly with stdin-based
+request passing and the same timeout/output/limit enforcement. Host
+Python must have the runtime dependencies installed:
 
-1. Install Python 3.11+.
-2. Install runtime dependencies:
+```bash
+python -m pip install -r services/quantum-runtime/requirements.txt
+```
 
-   ```bash
-   python -m pip install -r services/quantum-runtime/requirements.txt
-   ```
-
-3. Enable the explicit fallback mode in `.env`:
-
-   ```text
-   QUANTOO_SANDBOX_MODE=host-fallback
-   ```
-
-4. Start the app (`npm run dev`). Executions now run through the host
-   Python interpreter with a restricted namespace and a minimal
-   environment. This mode is weaker than the container sandbox and is for
-   local development only.
-
-## Container mode (default)
-
-Build the image once:
+## Docker mode (default)
 
 ```bash
 docker build -t quantoo/quantum-runtime:latest services/quantum-runtime
+docker network create --internal quantoo-sandbox   # no-egress network, created once
 ```
 
-Create the isolated network (once):
+The sandbox runs the image with:
 
-```bash
-docker network create quantoo-sandbox
-```
+- `--network quantoo-sandbox` (internal, no egress)
+- `--read-only` root filesystem + `noexec` tmpfs
+- `--cap-drop ALL`, `--security-opt no-new-privileges`
+- CPU, memory, and PID limits
+- no host mounts, no secrets, environment fully controlled
 
-Ensure Docker Desktop is running, then start the app. Executions run in a
-fresh container per request with no network, capped CPU/memory, and a
-read-only filesystem. If Docker is unavailable, executions fail with
-`SANDBOX_ERROR` — the app never silently downgrades isolation.
+Selection is controlled by `QUANTOO_SANDBOX_MODE`: `docker` (default),
+`host-fallback` (development only), `disabled` (reject executions).
 
-## Testing the runner directly
+## What the runner produces
 
-The runner reads one JSON request on stdin and writes one JSON document on
-stdout:
+The runner emits a single JSON artifact on stdout:
 
-```bash
-echo '{"sourceCode": "from qiskit import QuantumCircuit
-qc = QuantumCircuit(1)
-qc.h(0)
-result = qc", "scenarios": [{"name": "submission"}], "shots": 256}' \
-  | python services/quantum-runtime/runner.py
-```
+- circuit metadata (qubit count, depth, gate counts, hasMeasurements)
+- measurement counts per scenario (sampled)
+- gate trace (`steps`) with post-step state snapshots when inspection
+  is requested and the circuit size allows it
+- statevector pairs and exact, derived basis probabilities
+- optional density matrix / unitary payloads, size-capped
+- sanitized, classified errors (`TIMEOUT`, `MEMORY`, `RUNTIME_ERROR`,
+  `SANDBOX_ERROR`, …) with no host details
 
-- Success: `{"ok": true, "outcomes": {...}, "stdout": "..."}`
-- Failure: `{"ok": false, "error": {"code": "SYNTAX_ERROR", "message": "..."}}`
+## Runtime tests
 
-Automated coverage lives in `tests/runtime/runner.test.ts` (skips
-automatically when qiskit is not installed) and
-`tests/exec/security.test.ts`.
+`tests/runtime/runner.test.ts` spawns the real runner as a subprocess
+(skips automatically when Python/Qiskit is unavailable, e.g. CI jobs
+without the runtime). It covers Bell/zero/superposition scenarios,
+trace ordering, snapshot exactness, inspection caps, timeouts, and
+sandbox restriction cases.
 
-## Request fields
+## Adding a scenario
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `sourceCode` | string | required, ≤ 100 KB; must assign a `QuantumCircuit` to `result` |
-| `scenarios` | `{name}[]` | `submission`, `zero_state`, `superposition` |
-| `shots` | int | 1–10 000, default 4 096 |
-
-## Error codes
-
-| Code | Meaning |
-| --- | --- |
-| `INVALID_REQUEST` | malformed request document |
-| `INVALID_CODE` | missing/invalid `result`, oversized source |
-| `SYNTAX_ERROR` | user code does not parse |
-| `IMPORT_ERROR` | import outside the allowlist |
-| `RUNTIME_ERROR` | exception during execution |
-| `QUBIT_LIMIT` | circuit exceeds the qubit cap |
-| `CIRCUIT_LIMIT` | depth/operation cap exceeded |
-| `OUTPUT_LIMIT` | program printed more than allowed |
-| `MEMORY_LIMIT` | out of memory |
-| `TIMEOUT` | wall clock exceeded (enforced by the boundary) |
-| `SANDBOX_ERROR` | sandbox infrastructure failure |
-| `SIMULATOR_ERROR` | runtime returned an unreadable result |
-
-## Troubleshooting
-
-- **Executions fail with `SANDBOX_ERROR` in dev** — Docker Desktop is not
-  running or the `quantoo-sandbox` network is missing. Start Docker and
-  create the network, or explicitly set `QUANTOO_SANDBOX_MODE=host-fallback`.
-- **`SIMULATOR_ERROR` after upgrading qiskit** — rerun
-  `pip install -r services/quantum-runtime/requirements.txt` and rebuild
-  the image; the payload contract may have changed between versions.
-- **Windows console shows mojibake for `>` characters** — cosmetic only;
-  the payload is UTF-8 JSON.
-- **Tests skip** — the runtime test suite probes `python -c "import qiskit,
-  qiskit_aer"`; install the requirements to enable it.
+Scenario variants execute the user's measurement wiring against known
+input states (e.g. `zero_state`, `superposition`). Add a scenario to
+the runner's scenario registry and to the problem test spec schema —
+the judge consumes scenario counts exactly like primary counts.

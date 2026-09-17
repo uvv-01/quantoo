@@ -105,8 +105,9 @@ execution starts, so even a sandbox crash leaves an artifact:
   (for small unmeasured circuits) the statevector
 - `durationMs` / `completedAt`
 
-Fields intentionally left for future phases: gate traces, state snapshots,
-noise models, observables, backend metadata.
+Fields intentionally left for future phases: noise models, observables,
+backend metadata. Phase 5 added gate traces and state snapshots — see
+[debugger.md](./debugger.md).
 
 ### Quantum Judge (`lib/judge/index.ts`)
 

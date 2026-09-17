@@ -19,11 +19,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Play, Loader2, CheckCircle2, XCircle, Info } from "lucide-react";
+import { Play, Loader2, CheckCircle2, XCircle, Info, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CodeEditor } from "@/components/workspace/code-editor";
+import { QuantumDebugger } from "@/components/workspace/quantum-debugger";
 import { DIFFICULTY_CONFIG } from "@/lib/constants";
 import type { RunResponse } from "@/lib/exec/types";
 
@@ -64,6 +65,7 @@ export function QuantumWorkspace({
   const [phase, setPhase] = useState<RunPhase>("idle");
   const [result, setResult] = useState<RunResponse | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [debuggerOpen, setDebuggerOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstRender = useRef(true);
@@ -295,7 +297,16 @@ export function QuantumWorkspace({
           )}
 
           {result && (
-            <ResultPanel result={result} />
+            <>
+              <ResultPanel
+                result={result}
+                onOpenDebugger={() => setDebuggerOpen(true)}
+              />
+              <QuantumDebugger
+                submissionId={result.submissionId}
+                open={debuggerOpen}
+              />
+            </>
           )}
 
           {phase === "idle" && !result && (
@@ -318,7 +329,13 @@ export function QuantumWorkspace({
 // Result panel
 // ========================================
 
-function ResultPanel({ result }: { result: RunResponse }) {
+function ResultPanel({
+  result,
+  onOpenDebugger,
+}: {
+  result: RunResponse;
+  onOpenDebugger: () => void;
+}) {
   const execution = result.execution;
   const passed = result.judge?.passed === true;
   const failed = result.judge ? !result.judge.passed : false;
@@ -326,22 +343,37 @@ function ResultPanel({ result }: { result: RunResponse }) {
   return (
     <Card role="region" aria-label="Execution results">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          {result.judge === null && (
-            <Info className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            {result.judge === null && (
+              <Info className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            )}
+            {passed && (
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" aria-hidden="true" />
+            )}
+            {failed && (
+              <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
+            )}
+            {result.judge
+              ? passed
+                ? "All checks passed"
+                : "Checks failed"
+              : "Execution result"}
+          </CardTitle>
+          {result.status === "SUCCEEDED" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenDebugger}
+              aria-label="Open quantum debugger for this execution"
+            >
+              <Bug className="mr-2 h-4 w-4" aria-hidden="true" />
+              {result.judge && !result.judge.passed
+                ? "Debug failure"
+                : "Open debugger"}
+            </Button>
           )}
-          {passed && (
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" aria-hidden="true" />
-          )}
-          {failed && (
-            <XCircle className="h-5 w-5 text-red-500" aria-hidden="true" />
-          )}
-          {result.judge
-            ? passed
-              ? "All checks passed"
-              : "Checks failed"
-            : "Execution result"}
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {result.error && (

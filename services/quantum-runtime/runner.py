@@ -37,6 +37,23 @@ MAX_DEPTH = 200
 MAX_OPERATIONS = 1_000
 MAX_OUTPUT_BYTES = 16_000
 
+# Debugger trace policy. Per-step state snapshots are exponential in the
+# qubit count (2^n complex amplitudes), so the runtime enforces an amortized
+# byte budget and subsamples snapshots when a circuit would exceed it.
+# Inspection matrices have their own hard qubit caps because density
+# matrices are 2^n x 2^n and unitaries 2^n x 2^n complex entries.
+MAX_TRACE_SNAPSHOT_BYTES = 384_000
+# Per-request overrides (sent by the sandbox boundary from clamped
+# environment configuration) are themselves clamped to these hard caps;
+# configuration can tighten the policy but never exceed it.
+HARD_DENSITY_MATRIX_QUBITS = 8
+HARD_UNITARY_QUBITS = 6
+HARD_SNAPSHOT_STEPS = 128
+MAX_DENSITY_MATRIX_QUBITS = 4
+MAX_UNITARY_QUBITS = 3
+MAX_SNAPSHOT_STEPS = 32
+MAX_PAYLOAD_BYTES = 1_500_000
+
 # Top-level modules user code may import. Submodules of an allowed
 # top-level module are allowed automatically.
 IMPORT_ALLOWLIST = {"qiskit", "qiskit_aer", "numpy"}
@@ -269,6 +286,184 @@ def _circuit_metadata(circuit) -> dict:
     }
 
 
+# ========================================
+# Gate trace & state snapshots (Phase 5 debugger)
+# ========================================
+
+
+def _round_pairs(data) -> list:
+    """Serialize complex amplitudes as rounded [real, imaginary] pairs."""
+    return [
+        [round(float(amplitude.real), 10), round(float(amplitude.imag), 10)]
+        for amplitude in data
+    ]
+
+
+def _gate_trace_steps(circuit) -> list:
+    """Ordered gate-level steps for the circuit, preserving operation order."""
+    steps: list = []
+    for index, instruction in enumerate(circuit.data):
+        op = instruction.operation
+        steps.append({
+            "stepIndex": index,
+            "operationIndex": index,
+            "gateName": op.name,
+            "qubits": [circuit.find_bit(q).index for q in instruction.qubits],
+            "clbits": [circuit.find_bit(c).index for c in instruction.clbits],
+            "params": [float(p) for p in getattr(op, "params", [])],
+            "measurement": op.name == "measure",
+        })
+    return steps
+
+
+def _snapshot_policy(circuit, steps: list, max_snapshot_steps: int = MAX_SNAPSHOT_STEPS) -> dict:
+    """Decide which steps can carry exact state snapshots.
+
+    Each snapshot holds 2^n complex amplitudes. The policy keeps the total
+    serialized snapshot payload within MAX_TRACE_SNAPSHOT_BYTES and records
+    snapshots for at most `max_snapshot_steps` steps: every step when
+    affordable, otherwise an evenly spaced subsample (first and last always
+    included), otherwise no snapshots at all.
+    """
+    amps = 2 ** circuit.num_qubits
+    bytes_per_snapshot = amps * 24  # two rounded floats per amplitude
+    affordable = min(
+        max_snapshot_steps,
+        max(0, MAX_TRACE_SNAPSHOT_BYTES // bytes_per_snapshot),
+    )
+    total = len(steps)
+    if total == 0 or affordable < 2:
+        return {
+            "available": False,
+            "representation": "statevector",
+            "subsampled": False,
+            "stride": 0,
+            "reason": (
+                "State snapshots would exceed the debugger size budget "
+                "for this circuit."
+                if total > 0
+                else "The circuit has no operations to trace."
+            ),
+        }
+    if total <= affordable:
+        return {
+            "available": True,
+            "representation": "statevector",
+            "subsampled": False,
+            "stride": 1,
+            "reason": None,
+        }
+    stride = -(-total // affordable)  # ceil division
+    return {
+        "available": True,
+        "representation": "statevector",
+        "subsampled": True,
+        "stride": stride,
+        "reason": (
+            "Exact state snapshots are shown for a subsample of steps "
+            "(every %dth step) to stay within the debugger size budget."
+            % stride
+        ),
+    }
+
+
+def _snapshot_indices(policy: dict, total: int) -> set:
+    if not policy["available"] or total == 0:
+        return set()
+    if not policy["subsampled"]:
+        return set(range(total))
+    stride = policy["stride"]
+    indices = set(range(0, total, stride))
+    indices.add(total - 1)
+    return indices
+
+
+def _trace_with_snapshots(circuit, scenario: str, max_snapshot_steps: int = MAX_SNAPSHOT_STEPS) -> dict:
+    """Build the gate trace with per-step statevector snapshots.
+
+    Snapshots come from incrementally rebuilding the circuit without its
+    classical register and taking exact Statevector simulations. Measurement
+    steps snapshot the pre-measurement state: the post-measurement state
+    depends on the sampled outcome, so it is never reported as exact.
+    """
+    from qiskit import QuantumCircuit as QC
+    from qiskit.quantum_info import Statevector
+
+    steps = _gate_trace_steps(circuit)
+    policy = _snapshot_policy(circuit, steps, max_snapshot_steps)
+    wanted = _snapshot_indices(policy, len(steps))
+
+    n = circuit.num_qubits
+    probe = QC(n)
+    trace_steps: list = []
+    for step in steps:
+        if step["measurement"]:
+            # Classical register untouched; state unchanged before collapse.
+            entry = dict(step)
+            if step["stepIndex"] in wanted:
+                entry["afterState"] = _round_pairs(
+                    Statevector.from_instruction(probe).data
+                )
+            trace_steps.append(entry)
+            continue
+        instruction = circuit.data[step["operationIndex"]]
+        probe.append(
+            instruction.operation,
+            [probe.qubits[i] for i in step["qubits"]],
+            [],
+        )
+        entry = dict(step)
+        if step["stepIndex"] in wanted:
+            entry["afterState"] = _round_pairs(
+                Statevector.from_instruction(probe).data
+            )
+        trace_steps.append(entry)
+
+    return {"steps": trace_steps, "policy": policy}
+
+
+def _measurement_free_clone(circuit):
+    """Clone the circuit without classical registers and measurements."""
+    from qiskit import QuantumCircuit as QC
+
+    clone = QC(circuit.num_qubits)
+    for instruction in circuit.data:
+        if instruction.operation.name == "measure":
+            continue
+        clone.append(
+            instruction.operation,
+            [clone.qubits[circuit.find_bit(q).index] for q in instruction.qubits],
+            [],
+        )
+    return clone
+
+
+def _inspection_matrices(circuit, requested: list, max_density_qubits: int = MAX_DENSITY_MATRIX_QUBITS, max_unitary_qubits: int = MAX_UNITARY_QUBITS) -> dict:
+    """Density matrix and unitary for the final circuit, within hard caps."""
+    inspection: dict = {}
+    if "density_matrix" in requested:
+        if circuit.num_qubits > max_density_qubits:
+            inspection["densityMatrixUnavailable"] = "TOO_LARGE"
+        else:
+            from qiskit.quantum_info import DensityMatrix
+
+            density = DensityMatrix.from_instruction(
+                _measurement_free_clone(circuit)
+            )
+            inspection["densityMatrixPairs"] = _round_pairs(density.data.ravel())
+            inspection["densityMatrixDim"] = 2 ** circuit.num_qubits
+    if "unitary" in requested:
+        if circuit.num_qubits > max_unitary_qubits:
+            inspection["unitaryUnavailable"] = "TOO_LARGE"
+        else:
+            from qiskit.quantum_info import Operator
+
+            unitary = Operator(_measurement_free_clone(circuit)).data
+            inspection["unitaryPairs"] = _round_pairs(unitary.ravel())
+            inspection["unitaryDim"] = 2 ** circuit.num_qubits
+    return inspection
+
+
 def _check_limits(circuit) -> None:
     meta = _circuit_metadata(circuit)
     if meta["qubits"] > MAX_QUBITS:
@@ -285,7 +480,15 @@ def _has_measurements(circuit) -> bool:
     )
 
 
-def _simulate(circuit, scenario: str, shots: int) -> dict:
+def _simulate(
+    circuit,
+    scenario: str,
+    shots: int,
+    inspect: list,
+    max_snapshot_steps: int = MAX_SNAPSHOT_STEPS,
+    max_density_qubits: int = MAX_DENSITY_MATRIX_QUBITS,
+    max_unitary_qubits: int = MAX_UNITARY_QUBITS,
+) -> dict:
     """Simulate one circuit and produce its structured outcome."""
     from qiskit.quantum_info import Statevector
     from qiskit_aer import AerSimulator
@@ -301,11 +504,21 @@ def _simulate(circuit, scenario: str, shots: int) -> dict:
     else:
         statevector = Statevector.from_instruction(circuit)
         # Amplitudes serialized as [real, imaginary] pairs.
-        outcome["statevectorPairs"] = [
-            [float(amplitude.real), float(amplitude.imag)]
-            for amplitude in statevector.data
-        ]
+        outcome["statevectorPairs"] = _round_pairs(statevector.data)
         outcome["globalPhase"] = float(circuit.global_phase)
+        # Exact computational-basis probabilities derived from the statevector.
+        exact: dict = {}
+        for index, amplitude in enumerate(statevector.data):
+            probability = float(abs(amplitude) ** 2)
+            if probability > 0:
+                exact[format(index, f"0{circuit.num_qubits}b")] = round(probability, 10)
+        outcome["probabilities"] = exact
+
+    outcome["trace"] = _trace_with_snapshots(circuit, scenario, max_snapshot_steps)
+    if inspect:
+        outcome["inspection"] = _inspection_matrices(
+            _measurement_free_clone(circuit), inspect, max_density_qubits, max_unitary_qubits
+        )
 
     return outcome
 
@@ -342,6 +555,37 @@ def main() -> int:
     shots = request.get("shots", 4096)
     if not isinstance(shots, int) or shots < 1 or shots > 10_000:
         shots = 4096
+
+    inspect = request.get("inspect") or []
+    if not isinstance(inspect, list):
+        inspect = []
+    inspect = [
+        name for name in inspect
+        if name in ("density_matrix", "unitary")
+    ]
+
+    # Debugger snapshot policy overrides. Values arrive from clamped
+    # environment configuration and are clamped again to hard caps here.
+    def _clamp_int(raw, fallback, low, high):
+        if not isinstance(raw, int) or isinstance(raw, bool):
+            return fallback
+        return max(low, min(high, raw))
+
+    max_snapshot_steps = _clamp_int(
+        request.get("maxSnapshotSteps"), MAX_SNAPSHOT_STEPS, 1, HARD_SNAPSHOT_STEPS
+    )
+    max_density_qubits = _clamp_int(
+        request.get("maxDensityQubits"),
+        MAX_DENSITY_MATRIX_QUBITS,
+        1,
+        HARD_DENSITY_MATRIX_QUBITS,
+    )
+    max_unitary_qubits = _clamp_int(
+        request.get("maxUnitaryQubits"),
+        MAX_UNITARY_QUBITS,
+        1,
+        HARD_UNITARY_QUBITS,
+    )
 
     # Import qiskit before running user code so import failures are
     # classified as internal errors, not user errors.
@@ -385,18 +629,51 @@ def main() -> int:
         try:
             circuit = _build_variant(scenario_name, base_circuit, qiskit)
             _check_limits(circuit)
-            outcomes[scenario_name] = _simulate(circuit, scenario_name, shots)
+            outcomes[scenario_name] = _simulate(
+                circuit,
+                scenario_name,
+                shots,
+                inspect,
+                max_snapshot_steps,
+                max_density_qubits,
+                max_unitary_qubits,
+            )
         except BaseException as exc:  # noqa: BLE001 - sandbox boundary
             code, message = _classify(exc)
             _emit({"ok": False, "error": {"code": code, "message": message}})
             return 0
 
-    _emit({
+    # The debugger adds per-step snapshots and inspection matrices; keep the
+    # final payload within the sandbox output cap and report the shortfall
+    # instead of truncating silently.
+    payload = {
         "ok": True,
         "outcomes": outcomes,
         "stdout": user_stdout,
         "stderr": "",
-    })
+    }
+    size = len(json.dumps(payload).encode("utf-8"))
+    if size > MAX_PAYLOAD_BYTES:
+        for outcome in outcomes.values():
+            outcome.pop("trace", None)
+        size = len(json.dumps(payload).encode("utf-8"))
+    if size > MAX_PAYLOAD_BYTES:
+        for outcome in outcomes.values():
+            outcome.pop("inspection", None)
+            outcome["inspectionUnavailable"] = "TOO_LARGE"
+        size = len(json.dumps(payload).encode("utf-8"))
+    if size > MAX_PAYLOAD_BYTES:
+        return _emit_error_safely(
+            "OUTPUT_LIMIT",
+            "The debugger data for this circuit exceeded the allowed size.",
+        )
+
+    _emit(payload)
+    return 0
+
+
+def _emit_error_safely(code: str, message: str) -> int:
+    _emit({"ok": False, "error": {"code": code, "message": message}})
     return 0
 
 

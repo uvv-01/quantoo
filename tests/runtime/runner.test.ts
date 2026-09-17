@@ -156,6 +156,105 @@ describe.skipIf(!runtimeAvailable)("quantum runtime runner", () => {
     expect(payload.error?.code).toBe("IMPORT_ERROR");
   }, TEST_TIMEOUT);
 
+  it("produces a gate trace in operation order for a Bell circuit", async () => {
+    const payload = await runRunner({
+      sourceCode: BELL_CODE,
+      scenarios: [{ name: "submission" }],
+      shots: 128,
+    });
+    expect(payload.ok).toBe(true);
+    const trace = payload.outcomes?.["submission"]?.["trace"] as
+      | { steps: { stepIndex: number; gateName: string; qubits: number[]; measurement: boolean }[]; policy: { available: boolean } }
+      | undefined;
+    expect(trace).toBeDefined();
+    expect(trace?.policy.available).toBe(true);
+    expect(trace?.steps.map((s) => s.gateName)).toEqual([
+      "h", "cx", "measure", "measure",
+    ]);
+    expect(trace?.steps[1].qubits).toEqual([0, 1]);
+    expect(trace?.steps[1].measurement).toBe(false);
+    expect(trace?.steps[2].measurement).toBe(true);
+  }, TEST_TIMEOUT);
+
+  it("attaches exact pre-measurement state snapshots to trace steps", async () => {
+    const payload = await runRunner({
+      sourceCode: BELL_CODE,
+      scenarios: [{ name: "submission" }],
+      shots: 64,
+    });
+    const trace = payload.outcomes?.["submission"]?.["trace"] as
+      | { steps: { afterState?: [number, number][] }[] }
+      | undefined;
+    // After H: |00> and |01> each 1/sqrt(2) — no entanglement yet.
+    const afterH = trace?.steps[0].afterState;
+    expect(Math.abs(afterH?.[0][0] ?? 0)).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(Math.abs(afterH?.[1][0] ?? 0)).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(Math.abs(afterH?.[3][0] ?? 0)).toBeCloseTo(0, 6);
+    // After CX: Bell state |00> and |11> each 1/sqrt(2).
+    const afterCX = trace?.steps[1].afterState;
+    expect(Math.abs(afterCX?.[0][0] ?? 0)).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(Math.abs(afterCX?.[3][0] ?? 0)).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(Math.abs(afterCX?.[1][0] ?? 0)).toBeCloseTo(0, 6);
+    // Measure steps snapshot the pre-measurement state (unchanged):
+    // the post-measurement state depends on the sampled outcome.
+    expect(trace?.steps[2].afterState).toEqual(trace?.steps[1].afterState);
+  }, TEST_TIMEOUT);
+
+  it("produces exact probabilities only for statevector runs", async () => {
+    const measured = await runRunner({
+      sourceCode: BELL_CODE,
+      scenarios: [{ name: "submission" }],
+      shots: 256,
+    });
+    expect(measured.outcomes?.["submission"]?.["probabilities"]).toBeUndefined();
+    expect(measured.outcomes?.["submission"]?.["counts"]).toBeDefined();
+
+    const pure = await runRunner({
+      sourceCode:
+        "from qiskit import QuantumCircuit\nqc = QuantumCircuit(1)\nqc.h(0)\nresult = qc\n",
+    });
+    const p = pure.outcomes?.["submission"]?.["probabilities"] as
+      | Record<string, number>
+      | undefined;
+    expect(p).toBeDefined();
+    expect(Object.keys(p ?? {})).toHaveLength(2);
+    expect(p?.["0"]).toBeCloseTo(0.5, 6);
+    expect(p?.["1"]).toBeCloseTo(0.5, 6);
+  }, TEST_TIMEOUT);
+
+  it("returns inspection matrices within size caps and reports too-large sizes", async () => {
+    const small = await runRunner({
+      sourceCode:
+        "from qiskit import QuantumCircuit\nqc = QuantumCircuit(2)\nqc.h(0)\nqc.cx(0, 1)\nresult = qc\n",
+      inspect: ["density_matrix", "unitary"],
+    });
+    const inspection = small.outcomes?.["submission"]?.["inspection"] as
+      | {
+          densityMatrixDim?: number;
+          unitaryDim?: number;
+          densityMatrixPairs?: [number, number][];
+          densityMatrixUnavailable?: string;
+          unitaryUnavailable?: string;
+        }
+      | undefined;
+    expect(inspection?.densityMatrixDim).toBe(4);
+    expect(inspection?.unitaryDim).toBe(4);
+    // Bell state density matrix: diag(0.5, 0, 0, 0.5) with coherent corners.
+    expect(inspection?.densityMatrixPairs?.[0][0]).toBeCloseTo(0.5, 6);
+    expect(inspection?.densityMatrixPairs?.[3][0]).toBeCloseTo(0.5, 6);
+
+    const tooBig = await runRunner({
+      sourceCode:
+        "from qiskit import QuantumCircuit\nqc = QuantumCircuit(5)\nqc.h(0)\nresult = qc\n",
+      inspect: ["density_matrix", "unitary"],
+    });
+    const bigInspection = tooBig.outcomes?.["submission"]?.["inspection"] as
+      | { densityMatrixUnavailable?: string; unitaryUnavailable?: string }
+      | undefined;
+    expect(bigInspection?.densityMatrixUnavailable).toBe("TOO_LARGE");
+    expect(bigInspection?.unitaryUnavailable).toBe("TOO_LARGE");
+  }, TEST_TIMEOUT);
+
   it("blocks file access via removed builtins", async () => {
     const payload = await runRunner({
       sourceCode: "f = open('/etc/passwd')\n",

@@ -174,13 +174,18 @@ function checkState(
   if (!outcome) {
     return { ...base, status: "FAIL", message: "The program did not run." };
   }
-  const pairs = outcome.statevectorPairs;
+  // A measured circuit has no exact final statevector, but the runtime
+  // trace records the exact pre-measurement state at the last gate step —
+  // the standard, honest way to inspect "the state being measured".
+  const pairs =
+    outcome.statevectorPairs ??
+    lastPreMeasurementState(outcome.trace?.steps ?? []);
   if (!pairs) {
     return {
       ...base,
       status: "FAIL",
       message:
-        "This check requires the quantum state, but the circuit contains measurements. Remove the measurements so the state can be inspected.",
+        "This check requires the quantum state, which was not produced for this execution.",
     };
   }
   if (pairs.length !== expectedVector.length) {
@@ -211,6 +216,22 @@ function checkState(
     actual: magnitudesOf(pairs).map(round4),
     expected: expectedVector,
   };
+}
+
+/**
+ * Exact statevector just before the first measurement, from the trace.
+ * Returns undefined when no trace snapshots exist — callers treat that as
+ * "state unavailable" rather than fabricating data.
+ */
+function lastPreMeasurementState(
+  steps: { measurement: boolean; afterState?: [number, number][] }[],
+): [number, number][] | undefined {
+  for (const step of steps) {
+    if (step.measurement) {
+      return steps[steps.indexOf(step) - 1]?.afterState;
+    }
+  }
+  return steps[steps.length - 1]?.afterState;
 }
 
 /**

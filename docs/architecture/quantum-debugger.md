@@ -1,6 +1,14 @@
-# Quantum Debugger Architecture
+# Quantum Debugger
 
-> **Status: PLANNED — Not yet implemented.**
+> **Status: IMPLEMENTED (Phase 5).** See [debugger.md](./debugger.md) for
+> the shipped architecture: execution artifact extensions, gate trace,
+> state snapshots and scaling limits, the Quantum Time Machine, state
+> inspection, failure localization, the reference-comparison (Quantum
+> Diff) foundation, debugger modes, and the debugger API.
+
+The original plan for this subsystem is preserved below. Capabilities
+marked *deferred* are intentionally out of scope for Phase 5 and belong
+to later phases.
 
 ## Overview
 

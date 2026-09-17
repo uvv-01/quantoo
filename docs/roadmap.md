@@ -64,16 +64,24 @@
 - [ ] Multi-layer assessment beyond the four implemented check types (UNITARY, OBSERVABLE, … — reported as SKIPPED)
 - [ ] Execution queue for concurrent runs (currently inline with a wall-clock ceiling)
 
-## Phase 5: Quantum Debugger
+## Phase 5: Quantum Debugger (delivered)
 
-- [ ] Breakpoint support
-- [ ] Step forward / backward
-- [ ] State snapshot inspection
-- [ ] Probability distribution visualization
-- [ ] Bloch sphere rendering
-- [ ] Gate trace timeline
-- [ ] Reference vs. student comparison
-- [ ] Failure localization
+- [x] Step forward / backward (Quantum Time Machine: first/prev/next/last,
+  scrubber, play/pause, reset)
+- [x] Gate trace timeline
+- [x] State snapshot inspection (exact statevector; partial traces labeled)
+- [x] Amplitude / probability / phase inspector (global-phase aware)
+- [x] Probability distribution visualization (exact vs sampled clearly
+  distinguished)
+- [x] Reference vs. student comparison (Quantum Diff foundation:
+  STRUCTURE / STATE / PROBABILITY / MEASUREMENT / RESOURCE)
+- [x] Failure localization ("Failure observed after step N.", evidence-based)
+- [x] Circuit view with executed/upcoming operations and accessible current
+  step indicators
+- [x] Density matrix and unitary inspection with strict size limits
+- [ ] Breakpoint support (deferred — Phase 5 steps through recorded traces;
+  interactive breakpoints belong to a later phase)
+- [ ] Bloch sphere rendering (deferred)
 
 ## Phase 6: Noise, Optimization & Hardware-Aware Simulation
 

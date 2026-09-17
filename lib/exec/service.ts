@@ -345,33 +345,66 @@ async function recordAttempt(
 // ========================================
 
 /**
- * Reduce sandbox outcomes to the fields worth persisting. Statevectors can
- * be large (2^n complex amplitudes); they are dropped for measured circuits
- * and capped for small statevector circuits.
+ * Reduce sandbox outcomes to the fields worth persisting.
+ *
+ * The execution artifact is the debugger's data source, so gate traces and
+ * state snapshots are persisted alongside circuit metadata, counts, and
+ * exact probabilities — subject to size caps so a submission row can never
+ * balloon. Anything that does not fit is omitted; the debugger reports its
+ * absence rather than fabricating it.
  */
+
+/** Serialized-size cap for one scenario's persisted trace. */
+const MAX_STORED_TRACE_BYTES = 512_000;
+/** Serialized-size cap for one scenario's persisted inspection matrices. */
+const MAX_STORED_INSPECTION_BYTES = 256_000;
+
 function sanitizeOutcomesForStorage(
   outcomes: Record<string, ScenarioOutcome>,
 ): Record<string, unknown> {
   const cleaned: Record<string, unknown> = {};
   for (const [name, outcome] of Object.entries(outcomes)) {
+    // Keep the scenario name in the stored entry so consumers (debugger,
+    // diff, analytics) can validate the artifact shape defensively.
+    const entry: Record<string, unknown> = {
+      scenario: name,
+      circuit: outcome.circuit,
+    };
+
     if (outcome.counts) {
-      cleaned[name] = {
-        circuit: outcome.circuit,
-        counts: outcome.counts,
-        shots: outcome.shots,
-      };
-    } else if (
-      outcome.statevectorPairs && outcome.statevectorPairs.length <= 32
-    ) {
-      cleaned[name] = {
-        circuit: outcome.circuit,
-        statevectorPairs: outcome.statevectorPairs,
-      };
-    } else {
-      cleaned[name] = { circuit: outcome.circuit };
+      entry.counts = outcome.counts;
+      entry.shots = outcome.shots;
     }
+    if (
+      outcome.statevectorPairs &&
+      outcome.statevectorPairs.length <= 32
+    ) {
+      entry.statevectorPairs = outcome.statevectorPairs;
+      if (outcome.probabilities) entry.probabilities = outcome.probabilities;
+    }
+    if (outcome.trace && serializedSize(outcome.trace) <= MAX_STORED_TRACE_BYTES) {
+      entry.trace = outcome.trace;
+    }
+    if (outcome.inspectionUnavailable) {
+      entry.inspectionUnavailable = outcome.inspectionUnavailable;
+    } else if (
+      outcome.inspection &&
+      serializedSize(outcome.inspection) <= MAX_STORED_INSPECTION_BYTES
+    ) {
+      entry.inspection = outcome.inspection;
+    }
+
+    cleaned[name] = entry;
   }
   return cleaned;
+}
+
+function serializedSize(value: unknown): number {
+  try {
+    return JSON.stringify(value).length;
+  } catch {
+    return Number.MAX_SAFE_INTEGER;
+  }
 }
 
 // ========================================

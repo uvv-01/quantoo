@@ -52,3 +52,12 @@ prisma/migrations/**/migration_lock.toml
 
 # OS
 Thumbs.db
+
+# python runtime bytecode
+__pycache__/
+*.pyc
+
+# playwright artifacts
+/test-results/
+/playwright-report/
+/e2e/.auth/

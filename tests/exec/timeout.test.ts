@@ -20,6 +20,9 @@ const shortLimits: ExecutionLimits = {
   maxMemoryMb: 512,
   maxOutputBytes: 16_000,
   maxSourceBytes: 50_000,
+  maxSnapshotSteps: 32,
+  maxDensityQubits: 4,
+  maxUnitaryQubits: 3,
 };
 
 describe("sandbox timeout enforcement (host-fallback)", () => {
