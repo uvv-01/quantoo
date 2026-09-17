@@ -41,3 +41,42 @@ jobs:
         run: npm run build
         env:
           DATABASE_URL: "postgresql://user:password@localhost:5432/test"
+
+  quantum-runtime:
+    name: Quantum Runtime Tests (Python)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: services/quantum-runtime/requirements.txt
+
+      - name: Install quantum runtime dependencies
+        run: python -m pip install --disable-pip-version-check -r services/quantum-runtime/requirements.txt
+
+      - name: Build runtime Docker image
+        run: docker build -t quantoo/quantum-runtime:latest services/quantum-runtime
+
+      - name: Create isolated sandbox network
+        run: docker network create quantoo-sandbox
+
+      - name: Run quantum runtime tests
+        run: npx vitest run tests/runtime --testTimeout 120000
+
+      - name: Run sandbox timeout tests
+        run: npx vitest run tests/exec/timeout.test.ts --testTimeout 60000

@@ -1,9 +1,9 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProblemBySlug } from "@/lib/server/problem-service";
 import { DIFFICULTY_CONFIG } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import type { Metadata } from "next";
 import {
   Clock,
@@ -227,7 +227,7 @@ export default async function ProblemDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Code workspace placeholder */}
+          {/* Code workspace */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -236,11 +236,17 @@ export default async function ProblemDetailPage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <EmptyState
-                title="Coming in Phase 4"
-                description="The code workspace with quantum execution and evaluation will be available in a future phase."
-                className="border-0 p-4 shadow-none"
-              />
+              <p className="mb-4 text-sm text-muted-foreground">
+                Solve this problem in the interactive workspace: write Qiskit
+                code, execute it in an isolated sandbox, and evaluate it
+                against the problem checks.
+              </p>
+              <Link
+                href={`/problems/${problem.slug}/solve`}
+                className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                Open workspace
+              </Link>
             </CardContent>
           </Card>
 

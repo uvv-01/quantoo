@@ -54,14 +54,15 @@
 
 ## Phase 4: Code Workspace + Execution + Judge
 
-- [ ] Code editor integration (Monaco / CodeMirror)
-- [ ] Quantum execution sandbox
-- [ ] Python runtime (Qiskit)
-- [ ] Execution artifact generation
-- [ ] Quantum Judge evaluation engine
-- [ ] Multi-layer assessment
-- [ ] Resource metrics
-- [ ] Real-time execution feedback
+- [x] Code editor integration (CodeMirror 6 with Python language support)
+- [x] Quantum execution sandbox (Docker container per run, no network, capped resources)
+- [x] Python runtime (Qiskit + Qiskit Aer) with scenario variants
+- [x] Execution artifact generation (persisted Submission with structured results)
+- [x] Quantum Judge evaluation engine (STATE, DISTRIBUTION, STRUCTURAL, ENTANGLEMENT)
+- [x] Resource metrics (qubits, depth, gate counts, shots, wall clock)
+- [x] Code persistence (drafts with autosave) and submission history foundation
+- [ ] Multi-layer assessment beyond the four implemented check types (UNITARY, OBSERVABLE, … — reported as SKIPPED)
+- [ ] Execution queue for concurrent runs (currently inline with a wall-clock ceiling)
 
 ## Phase 5: Quantum Debugger
 

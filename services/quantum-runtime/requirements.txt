@@ -1,0 +1,5 @@
+# Quantum runtime dependencies (pinned for reproducibility).
+# Install with: pip install -r services/quantum-runtime/requirements.txt
+qiskit==1.2.4
+qiskit-aer==0.15.1
+numpy==2.1.3

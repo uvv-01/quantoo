@@ -1,8 +1,8 @@
-# Quantum Daily
+# Quantoo
 
 **Practice quantum computing like an engineer.**
 
-Quantum Daily is a developer-first quantum-computing learning and engineering platform. It provides a structured path from quantum fundamentals through real hardware execution, with professional-grade tools at every stage.
+Quantoo is a developer-first quantum-computing learning and engineering platform. It provides a structured path from quantum fundamentals through real hardware execution, with professional-grade tools at every stage.
 
 ## Vision
 
@@ -19,6 +19,7 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 **Phase 1 — Foundation** ✅
 **Phase 2 — Authentication & Security** ✅
 **Phase 3 — Problem & Content Engine** ✅
+**Phase 4 — Code Workspace, Execution & Judge** ✅
 
 ### Phase 1 — Foundation
 - Next.js application with TypeScript strict mode
@@ -62,6 +63,21 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 - Test specification architecture for future Judge integration
 - 198 unit tests across 19 test files
 
+### Phase 4 — Code Workspace, Execution & Judge
+- Interactive problem workspace (`/problems/[slug]/solve`) with a CodeMirror Python editor, starter code, and draft autosave
+- Qiskit/Aer quantum runtime (`services/quantum-runtime`) executing submissions with scenario variants (zero state, superposition)
+- Docker sandbox: per-run container with no network, CPU/memory caps, PID limit, read-only filesystem, dropped capabilities, and an explicit minimal environment (no secrets)
+- Resource policy: configurable and clamped limits for qubits, depth, operations, shots, wall clock, memory, and output size
+- Execution API (`POST /api/executions/run`) with session authentication, per-user rate limiting, and Zod validation
+- First Quantum Judge: STATE (global-phase-invariant), DISTRIBUTION (tolerance, scenario-based), STRUCTURAL, and ENTANGLEMENT checks driven by authored test specifications
+- Execution artifacts persisted per run (`Submission` model) with structured, safe error codes; submission history endpoint
+- Code persistence (`ProblemDraft` model) with per-user ownership and autosave
+- Automatic progress recording — `SOLVED` only from a real judge pass
+- Execution result UI: verdicts, per-check explanations, circuit metrics, measurement counts, program output
+- Runtime, judge, sandbox security, and validation test suites (runner tests skip gracefully when the runtime is absent)
+
+**Not yet implemented:** advanced debugger (breakpoints, time machine), noise models, transpilation, real hardware, projects, portfolio, skill graph, AI tutor.
+
 **Not yet implemented:** Code execution, quantum simulation, debugger, real hardware, projects, portfolio, AI tutor.
 
 ## Architecture
@@ -79,7 +95,9 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 │  ├─ Auth (signup, login, sessions)           │
 │  ├─ Problem (CRUD, search, filter, paginate) │
 │  ├─ Learning (topics, concepts, progress)    │
-│  └─ Progress (attempts, completion)          │
+│  ├─ Progress (attempts, completion)          │
+│  ├─ Execution (run workflow, artifacts)      │
+│  └─ Judge (STATE/DISTRIBUTION/STRUCTURAL/…)  │
 ├─────────────────────────────────────────────┤
 │  Validation (Zod) │ Security Events │ Email │
 ├─────────────────────────────────────────────┤
@@ -88,10 +106,13 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 │            PostgreSQL Database              │
 └─────────────────────────────────────────────┘
 
-Future (Phase 4+):
-  Code Workspace → Execution API → Python Runtime → Qiskit Aer
+Quantum execution (Phase 4):
+  Workspace UI → Execution API → Sandbox boundary → Docker container
        ↓
-  Execution Artifact → Quantum Judge → Debugger → UI
+  Qiskit/Aer runtime → Execution artifact → Quantum Judge → Verdict
+
+Future (Phase 5+):
+  Quantum Debugger → Noise Engine → Transpilation → Real QPU → Portfolio
 ```
 
 See [docs/architecture/](docs/architecture/) for detailed documentation.
@@ -105,6 +126,9 @@ See [docs/architecture/](docs/architecture/) for detailed documentation.
 | UI | React 19, Tailwind CSS 4 |
 | Database | PostgreSQL, Prisma 5 |
 | Auth | bcryptjs, secure HTTP-only cookies |
+| Quantum runtime | Python 3.11, Qiskit, Qiskit Aer |
+| Sandbox | Docker (per-run container, no network) |
+| Code editor | CodeMirror 6 (@uiw/react-codemirror) |
 | Validation | Zod |
 | Testing | Vitest, React Testing Library |
 | Linting | ESLint 9, Prettier |
@@ -160,6 +184,8 @@ The app runs at `http://localhost:3000`.
 | `npm run format` | Format with Prettier |
 | `npm run format:check` | Check formatting |
 | `npx prisma studio` | Open Prisma Studio |
+| `docker build -t quantoo/quantum-runtime:latest services/quantum-runtime` | Build the sandbox runtime image |
+| `docker network create quantoo-sandbox` | Create the isolated sandbox network |
 
 ### Environment Variables
 
@@ -176,6 +202,10 @@ SMTP_PORT             # SMTP port
 SMTP_USER             # SMTP username
 SMTP_PASSWORD         # SMTP password
 LOG_LEVEL             # debug | info | warn | error
+QUANTOO_SANDBOX_MODE  # docker (default) | host-fallback (local dev only) | disabled
+EXEC_MAX_QUBITS       # Sandbox qubit limit (default 8, clamped)
+EXEC_TIMEOUT_MS       # Execution wall-clock limit (default 15000)
+EXEC_MEMORY_MB        # Sandbox memory limit (default 512)
 ```
 
 ## Testing
@@ -200,6 +230,10 @@ Tests cover:
 - Problem relation types and test specification architecture
 - Progress tracking logic (status transitions, attempt counting, ownership)
 - Security tests (draft protection, authorization, input validation, data isolation)
+- Quantum Judge checks (state with global-phase invariance, distributions, structure, entanglement)
+- Execution limits clamping and run-request validation
+- Quantum runtime runner integration tests (real Qiskit execution, error classification, sandbox restrictions; skip when the runtime is not installed)
+- Sandbox boundary security (mode gating, disabled refusal, no stack traces in failures)
 
 ## Project Structure
 
@@ -211,9 +245,12 @@ quantoo/
 │   │   ├── health/       # Health check endpoint
 │   │   ├── problems/     # Problem listing and detail
 │   │   ├── learn/        # Learning topics
-│   │   └── progress/     # User progress tracking
+│   │   ├── progress/     # User progress tracking
+│   │   ├── executions/   # Run submissions & history (Phase 4)
+│   │   └── drafts/       # Code draft persistence (Phase 4)
 │   ├── dashboard/        # Dashboard
 │   ├── problems/         # Problem catalog UI
+│   │   └── [slug]/solve/ # Quantum workspace (Phase 4)
 │   ├── learn/            # Learning paths UI
 │   ├── projects/         # Projects
 │   ├── profile/          # User profile
@@ -224,6 +261,8 @@ quantoo/
 │   └── providers/        # ThemeProvider
 ├── lib/
 │   ├── auth/             # Auth service, session, tokens, email
+│   ├── exec/             # Execution: sandbox, limits, validation, service
+│   ├── judge/            # Quantum Judge checks
 │   ├── server/           # Server-side services
 │   │   ├── problem-service.ts
 │   │   ├── learning-service.ts
@@ -235,8 +274,10 @@ quantoo/
 │   ├── prisma.ts         # Prisma client singleton
 │   └── utils.ts          # Utility functions
 ├── middleware.ts          # Route protection middleware
-├── prisma/               # Database schema + seed
-├── tests/                # Unit tests
+├── prisma/               # Database schema + migrations + seed
+├── services/
+│   └── quantum-runtime/  # Python sandbox runtime (Qiskit/Aer)
+├── tests/                # Unit & integration tests
 ├── e2e/                  # E2E tests (future)
 └── docs/                 # Documentation
 ```
@@ -248,7 +289,7 @@ quantoo/
 | 1 | Foundation | ✅ Complete |
 | 2 | Authentication & Security | ✅ Complete |
 | 3 | Problem & Content Engine | ✅ Complete |
-| 4 | Code Workspace + Execution + Judge | Planned |
+| 4 | Code Workspace + Execution + Judge | ✅ Complete |
 | 5 | Quantum Debugger | Planned |
 | 6 | Noise, Optimization & Hardware-Aware Simulation | Planned |
 | 7 | Real Hardware + Transpilation | Planned |

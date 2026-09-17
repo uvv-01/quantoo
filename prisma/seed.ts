@@ -197,14 +197,14 @@ async function main() {
 
   // Link topics to concepts
   await Promise.all([
-    prisma.learningTopicConcept.create({ data: { topicId: foundationsTopic.id, conceptId: concepts[0].id, sortOrder: 0 } }),
-    prisma.learningTopicConcept.create({ data: { topicId: foundationsTopic.id, conceptId: concepts[1].id, sortOrder: 1 } }),
-    prisma.learningTopicConcept.create({ data: { topicId: foundationsTopic.id, conceptId: concepts[3].id, sortOrder: 2 } }),
-    prisma.learningTopicConcept.create({ data: { topicId: gatesTopic.id, conceptId: concepts[4].id, sortOrder: 0 } }),
-    prisma.learningTopicConcept.create({ data: { topicId: gatesTopic.id, conceptId: concepts[5].id, sortOrder: 1 } }),
-    prisma.learningTopicConcept.create({ data: { topicId: gatesTopic.id, conceptId: concepts[6].id, sortOrder: 2 } }),
-    prisma.learningTopicConcept.create({ data: { topicId: multiQubitTopic.id, conceptId: concepts[7].id, sortOrder: 0 } }),
-    prisma.learningTopicConcept.create({ data: { topicId: multiQubitTopic.id, conceptId: concepts[8].id, sortOrder: 1 } }),
+    prisma.learningTopicConcept.upsert({ where: { topicId_conceptId: { topicId: foundationsTopic.id, conceptId: concepts[0].id } }, update: {}, create: { topicId: foundationsTopic.id, conceptId: concepts[0].id, sortOrder: 0 } }),
+    prisma.learningTopicConcept.upsert({ where: { topicId_conceptId: { topicId: foundationsTopic.id, conceptId: concepts[1].id } }, update: {}, create: { topicId: foundationsTopic.id, conceptId: concepts[1].id, sortOrder: 1 } }),
+    prisma.learningTopicConcept.upsert({ where: { topicId_conceptId: { topicId: foundationsTopic.id, conceptId: concepts[3].id } }, update: {}, create: { topicId: foundationsTopic.id, conceptId: concepts[3].id, sortOrder: 2 } }),
+    prisma.learningTopicConcept.upsert({ where: { topicId_conceptId: { topicId: gatesTopic.id, conceptId: concepts[4].id } }, update: {}, create: { topicId: gatesTopic.id, conceptId: concepts[4].id, sortOrder: 0 } }),
+    prisma.learningTopicConcept.upsert({ where: { topicId_conceptId: { topicId: gatesTopic.id, conceptId: concepts[5].id } }, update: {}, create: { topicId: gatesTopic.id, conceptId: concepts[5].id, sortOrder: 1 } }),
+    prisma.learningTopicConcept.upsert({ where: { topicId_conceptId: { topicId: gatesTopic.id, conceptId: concepts[6].id } }, update: {}, create: { topicId: gatesTopic.id, conceptId: concepts[6].id, sortOrder: 2 } }),
+    prisma.learningTopicConcept.upsert({ where: { topicId_conceptId: { topicId: multiQubitTopic.id, conceptId: concepts[7].id } }, update: {}, create: { topicId: multiQubitTopic.id, conceptId: concepts[7].id, sortOrder: 0 } }),
+    prisma.learningTopicConcept.upsert({ where: { topicId_conceptId: { topicId: multiQubitTopic.id, conceptId: concepts[8].id } }, update: {}, create: { topicId: multiQubitTopic.id, conceptId: concepts[8].id, sortOrder: 1 } }),
   ]);
 
   console.log("Created learning topics");
@@ -522,54 +522,54 @@ async function main() {
 
   // Link concepts to problems
   await Promise.all([
-    prisma.problemConcept.create({ data: { problemId: p1.id, conceptId: concepts[0].id } }),
-    prisma.problemConcept.create({ data: { problemId: p1.id, conceptId: concepts[1].id } }),
-    prisma.problemConcept.create({ data: { problemId: p2.id, conceptId: concepts[4].id } }),
-    prisma.problemConcept.create({ data: { problemId: p2.id, conceptId: concepts[5].id } }),
-    prisma.problemConcept.create({ data: { problemId: p3.id, conceptId: concepts[2].id } }),
-    prisma.problemConcept.create({ data: { problemId: p3.id, conceptId: concepts[6].id } }),
-    prisma.problemConcept.create({ data: { problemId: p4.id, conceptId: concepts[3].id } }),
-    prisma.problemConcept.create({ data: { problemId: p4.id, conceptId: concepts[2].id } }),
-    prisma.problemConcept.create({ data: { problemId: p5.id, conceptId: concepts[7].id } }),
-    prisma.problemConcept.create({ data: { problemId: p5.id, conceptId: concepts[8].id } }),
-    prisma.problemConcept.create({ data: { problemId: p5.id, conceptId: concepts[9].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p1.id, conceptId: concepts[0].id } }, update: {}, create: { problemId: p1.id, conceptId: concepts[0].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p1.id, conceptId: concepts[1].id } }, update: {}, create: { problemId: p1.id, conceptId: concepts[1].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p2.id, conceptId: concepts[4].id } }, update: {}, create: { problemId: p2.id, conceptId: concepts[4].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p2.id, conceptId: concepts[5].id } }, update: {}, create: { problemId: p2.id, conceptId: concepts[5].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p3.id, conceptId: concepts[2].id } }, update: {}, create: { problemId: p3.id, conceptId: concepts[2].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p3.id, conceptId: concepts[6].id } }, update: {}, create: { problemId: p3.id, conceptId: concepts[6].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p4.id, conceptId: concepts[3].id } }, update: {}, create: { problemId: p4.id, conceptId: concepts[3].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p4.id, conceptId: concepts[2].id } }, update: {}, create: { problemId: p4.id, conceptId: concepts[2].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p5.id, conceptId: concepts[7].id } }, update: {}, create: { problemId: p5.id, conceptId: concepts[7].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p5.id, conceptId: concepts[8].id } }, update: {}, create: { problemId: p5.id, conceptId: concepts[8].id } }),
+    prisma.problemConcept.upsert({ where: { problemId_conceptId: { problemId: p5.id, conceptId: concepts[9].id } }, update: {}, create: { problemId: p5.id, conceptId: concepts[9].id } }),
   ]);
 
   // Link tags to problems
   await Promise.all([
-    prisma.problemTag.create({ data: { problemId: p1.id, tagId: tags[0].id } }),
-    prisma.problemTag.create({ data: { problemId: p1.id, tagId: tags[7].id } }),
-    prisma.problemTag.create({ data: { problemId: p2.id, tagId: tags[0].id } }),
-    prisma.problemTag.create({ data: { problemId: p2.id, tagId: tags[3].id } }),
-    prisma.problemTag.create({ data: { problemId: p3.id, tagId: tags[0].id } }),
-    prisma.problemTag.create({ data: { problemId: p3.id, tagId: tags[6].id } }),
-    prisma.problemTag.create({ data: { problemId: p3.id, tagId: tags[3].id } }),
-    prisma.problemTag.create({ data: { problemId: p4.id, tagId: tags[2].id } }),
-    prisma.problemTag.create({ data: { problemId: p4.id, tagId: tags[7].id } }),
-    prisma.problemTag.create({ data: { problemId: p5.id, tagId: tags[1].id } }),
-    prisma.problemTag.create({ data: { problemId: p5.id, tagId: tags[4].id } }),
-    prisma.problemTag.create({ data: { problemId: p5.id, tagId: tags[5].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p1.id, tagId: tags[0].id } }, update: {}, create: { problemId: p1.id, tagId: tags[0].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p1.id, tagId: tags[7].id } }, update: {}, create: { problemId: p1.id, tagId: tags[7].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p2.id, tagId: tags[0].id } }, update: {}, create: { problemId: p2.id, tagId: tags[0].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p2.id, tagId: tags[3].id } }, update: {}, create: { problemId: p2.id, tagId: tags[3].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p3.id, tagId: tags[0].id } }, update: {}, create: { problemId: p3.id, tagId: tags[0].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p3.id, tagId: tags[6].id } }, update: {}, create: { problemId: p3.id, tagId: tags[6].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p3.id, tagId: tags[3].id } }, update: {}, create: { problemId: p3.id, tagId: tags[3].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p4.id, tagId: tags[2].id } }, update: {}, create: { problemId: p4.id, tagId: tags[2].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p4.id, tagId: tags[7].id } }, update: {}, create: { problemId: p4.id, tagId: tags[7].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p5.id, tagId: tags[1].id } }, update: {}, create: { problemId: p5.id, tagId: tags[1].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p5.id, tagId: tags[4].id } }, update: {}, create: { problemId: p5.id, tagId: tags[4].id } }),
+    prisma.problemTag.upsert({ where: { problemId_tagId: { problemId: p5.id, tagId: tags[5].id } }, update: {}, create: { problemId: p5.id, tagId: tags[5].id } }),
   ]);
 
   // Link problems to learning topics
   await Promise.all([
-    prisma.learningTopicProblem.create({ data: { topicId: foundationsTopic.id, problemId: p1.id, sortOrder: 1 } }),
-    prisma.learningTopicProblem.create({ data: { topicId: foundationsTopic.id, problemId: p4.id, sortOrder: 2 } }),
-    prisma.learningTopicProblem.create({ data: { topicId: gatesTopic.id, problemId: p2.id, sortOrder: 1 } }),
-    prisma.learningTopicProblem.create({ data: { topicId: gatesTopic.id, problemId: p3.id, sortOrder: 2 } }),
-    prisma.learningTopicProblem.create({ data: { topicId: multiQubitTopic.id, problemId: p5.id, sortOrder: 1 } }),
+    prisma.learningTopicProblem.upsert({ where: { topicId_problemId: { topicId: foundationsTopic.id, problemId: p1.id } }, update: {}, create: { topicId: foundationsTopic.id, problemId: p1.id, sortOrder: 1 } }),
+    prisma.learningTopicProblem.upsert({ where: { topicId_problemId: { topicId: foundationsTopic.id, problemId: p4.id } }, update: {}, create: { topicId: foundationsTopic.id, problemId: p4.id, sortOrder: 2 } }),
+    prisma.learningTopicProblem.upsert({ where: { topicId_problemId: { topicId: gatesTopic.id, problemId: p2.id } }, update: {}, create: { topicId: gatesTopic.id, problemId: p2.id, sortOrder: 1 } }),
+    prisma.learningTopicProblem.upsert({ where: { topicId_problemId: { topicId: gatesTopic.id, problemId: p3.id } }, update: {}, create: { topicId: gatesTopic.id, problemId: p3.id, sortOrder: 2 } }),
+    prisma.learningTopicProblem.upsert({ where: { topicId_problemId: { topicId: multiQubitTopic.id, problemId: p5.id } }, update: {}, create: { topicId: multiQubitTopic.id, problemId: p5.id, sortOrder: 1 } }),
   ]);
 
   // Create problem relations
   await Promise.all([
-    prisma.problemRelation.create({ data: { fromId: p2.id, toId: p1.id, type: "PREREQUISITE" } }),
-    prisma.problemRelation.create({ data: { fromId: p3.id, toId: p2.id, type: "PREREQUISITE" } }),
-    prisma.problemRelation.create({ data: { fromId: p4.id, toId: p3.id, type: "PREREQUISITE" } }),
-    prisma.problemRelation.create({ data: { fromId: p5.id, toId: p4.id, type: "PREREQUISITE" } }),
-    prisma.problemRelation.create({ data: { fromId: p1.id, toId: p2.id, type: "NEXT" } }),
-    prisma.problemRelation.create({ data: { fromId: p2.id, toId: p3.id, type: "NEXT" } }),
-    prisma.problemRelation.create({ data: { fromId: p3.id, toId: p4.id, type: "NEXT" } }),
-    prisma.problemRelation.create({ data: { fromId: p4.id, toId: p5.id, type: "NEXT" } }),
+    prisma.problemRelation.upsert({ where: { fromId_toId_type: { fromId: p2.id, toId: p1.id, type: "PREREQUISITE" } }, update: {}, create: { fromId: p2.id, toId: p1.id, type: "PREREQUISITE" } }),
+    prisma.problemRelation.upsert({ where: { fromId_toId_type: { fromId: p3.id, toId: p2.id, type: "PREREQUISITE" } }, update: {}, create: { fromId: p3.id, toId: p2.id, type: "PREREQUISITE" } }),
+    prisma.problemRelation.upsert({ where: { fromId_toId_type: { fromId: p4.id, toId: p3.id, type: "PREREQUISITE" } }, update: {}, create: { fromId: p4.id, toId: p3.id, type: "PREREQUISITE" } }),
+    prisma.problemRelation.upsert({ where: { fromId_toId_type: { fromId: p5.id, toId: p4.id, type: "PREREQUISITE" } }, update: {}, create: { fromId: p5.id, toId: p4.id, type: "PREREQUISITE" } }),
+    prisma.problemRelation.upsert({ where: { fromId_toId_type: { fromId: p1.id, toId: p2.id, type: "NEXT" } }, update: {}, create: { fromId: p1.id, toId: p2.id, type: "NEXT" } }),
+    prisma.problemRelation.upsert({ where: { fromId_toId_type: { fromId: p2.id, toId: p3.id, type: "NEXT" } }, update: {}, create: { fromId: p2.id, toId: p3.id, type: "NEXT" } }),
+    prisma.problemRelation.upsert({ where: { fromId_toId_type: { fromId: p3.id, toId: p4.id, type: "NEXT" } }, update: {}, create: { fromId: p3.id, toId: p4.id, type: "NEXT" } }),
+    prisma.problemRelation.upsert({ where: { fromId_toId_type: { fromId: p4.id, toId: p5.id, type: "NEXT" } }, update: {}, create: { fromId: p4.id, toId: p5.id, type: "NEXT" } }),
   ]);
 
   console.log("Created 5 seed problems with concepts, tags, and relations");

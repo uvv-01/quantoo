@@ -100,6 +100,9 @@ export const RATE_LIMITS = {
     maxRequests: 3,
     windowSeconds: 60 * 60,
   } as RateLimitConfig, // 3 per hour
+  // Quantum execution is expensive: keep the per-user budget conservative.
+  execution: { maxRequests: 20, windowSeconds: 10 * 60 } as RateLimitConfig, // 20 per 10 min
+  draftSave: { maxRequests: 60, windowSeconds: 10 * 60 } as RateLimitConfig, // autosave headroom
 } as const;
 
 /**

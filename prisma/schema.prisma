@@ -66,6 +66,15 @@ enum ProblemRelationType {
   SAME_CONCEPT
 }
 
+enum SubmissionStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  TIMED_OUT
+  RESOURCE_LIMIT
+}
+
 enum SecurityEventType {
   SIGNUP_SUCCESS
   LOGIN_SUCCESS
@@ -101,6 +110,8 @@ model User {
   dailyChallengeSubmissions DailyChallengeSubmission[]
   securityEvents    SecurityEvent[]
   learningProgress  UserLearningProgress[]
+  submissions       Submission[]
+  problemDrafts     ProblemDraft[]
 
   @@map("users")
 }
@@ -293,6 +304,7 @@ model Problem {
   testSpecification Json?          // Future Judge contract: structured test cases
   requirements     Json?           // Problem requirements: {qubits, gates, depth, etc.}
   expectedOutcome  Json?           // What a correct solution achieves
+  starterCode      String?         @db.Text  // Versioned starter code for the workspace
   publishedAt      DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
@@ -305,6 +317,8 @@ model Problem {
   learningTopics   LearningTopicProblem[]
   relatedFrom      ProblemRelation[] @relation("fromProblem")
   relatedTo        ProblemRelation[] @relation("toProblem")
+  submissions      Submission[]
+  drafts           ProblemDraft[]
 
   @@index([difficulty])
   @@index([status])
@@ -364,6 +378,58 @@ model ProblemVersion {
 
   @@unique([problemId, version])
   @@map("problem_versions")
+}
+
+// ========================================
+// Submissions & Execution Artifacts (Phase 4)
+// ========================================
+
+/// A user's code submission for a problem. Each execution creates one row.
+/// The execution artifact (circuit metadata, counts, probabilities, stdout, etc.)
+/// is stored in `executionResult` as structured JSON so future phases
+/// (debugger, analytics, portfolio) can consume it without a migration.
+model Submission {
+  id              String           @id @default(uuid())
+  userId          String
+  problemId       String
+  sourceCode      String           @db.Text
+  language        String           @default("python")
+  status          SubmissionStatus @default(PENDING)
+  errorCode       String?          // Structured error category, e.g. SYNTAX_ERROR, TIMEOUT
+  errorMessage    String?          // Safe, user-facing error message (no stack traces)
+  passed          Boolean?         // Judge verdict (null = not yet judged)
+  judgeResult     Json?            // Full JudgeResult {passed, checks, failures, summary}
+  executionResult Json?            // Execution artifact {circuit, counts, probabilities, ...}
+  durationMs      Int?
+  createdAt       DateTime         @default(now())
+  completedAt     DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([problemId, createdAt])
+  @@index([userId, problemId, createdAt])
+  @@index([status])
+  @@map("submissions")
+}
+
+/// A user's saved in-progress code for a problem (code persistence).
+/// This is a DRAFT — never treated as a verified submission.
+model ProblemDraft {
+  id         String   @id @default(uuid())
+  userId     String
+  problemId  String
+  sourceCode String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+  @@index([userId, updatedAt])
+  @@map("problem_drafts")
 }
 
 // ========================================

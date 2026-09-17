@@ -46,6 +46,7 @@ export interface ProblemDetail {
   requirements: Prisma.JsonValue;
   expectedOutcome: Prisma.JsonValue;
   testSpecification: Prisma.JsonValue;
+  starterCode: string | null;
   publishedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -215,6 +216,7 @@ export async function getProblemBySlug(
       requirements: true,
       expectedOutcome: true,
       testSpecification: true,
+      starterCode: true,
       publishedAt: true,
       createdAt: true,
       updatedAt: true,
