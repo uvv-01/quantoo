@@ -29,9 +29,11 @@ describe("Projects Page", () => {
     );
   });
 
-  it("shows coming soon state", () => {
+  it("shows the empty state when no projects exist", async () => {
     render(<ProjectsPage />);
-    expect(screen.getByText(/Projects coming in Phase 8/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/No projects yet/),
+    ).toBeInTheDocument();
   });
 });
 

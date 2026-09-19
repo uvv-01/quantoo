@@ -23,6 +23,7 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 **Phase 5 — Quantum Debugger & Execution Traces** ✅
 **Phase 6 — Quantum Semantic Observatory** ✅
 **Phase 7 — Quantum Compatibility & Reproducibility Lab** ✅
+**Phase 8 — Quantum Software Observatory: Production & Research Launch** ✅
 
 ### Phase 1 — Foundation
 - Next.js application with TypeScript strict mode
@@ -118,7 +119,22 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 - Compatibility Lab UI inside the workspace: environment matrix with availability labels, experiment execution, per-dimension evidence, "Inspect at divergence" deep link into the Phase 5 debugger, and package export/import
 - Test coverage: registry/fingerprint/policy units, real cross-environment integration (the same Bell program through both runtimes, genuine version metadata on both sides, X-vs-H behavioral difference across environments), full experiment flow over the real database, cross-user isolation, and tampered-package rejection
 
-**Not yet implemented:** cross-framework execution (PennyLane/Cirq), noise models, transpilation visualization, real hardware, projects, portfolio, AI tutor.
+**Not yet implemented:** cross-framework execution (PennyLane/Cirq), noise models, transpilation visualization, real hardware, unlisted artifact visibility.
+
+### Phase 8 — Quantum Software Observatory: Production & Research Launch
+- Research artifacts (`quantoo.artifact.v1`): provenance-preserving evidence documents assembled from compatibility experiments — capsules, compatibility reports, and reproduction reports are embedded snapshots frozen at publish time
+- Versioning and integrity: immutable published versions, sha-256 hashes over canonical JSON, tamper-evident export envelope with hash verification on import
+- Visibility control (`PRIVATE`/`PUBLIC`) with explicit user-driven publishing; imports are untrusted data (schema, size, depth, and hash validated, never executed) and create new private artifacts whose baseline is established by a real local execution
+- Benchmark corpus: code-defined canonical programs (state preparation, entanglement, measurement, noise sensitivity) with seeded, evidence-producing runs through the standard sandbox pipeline and run-to-run comparison that classifies correctness / behavioral / resource regressions
+- Projects: user-organized evidence containers referencing real problems, executions, experiments, and artifacts with server-side ownership enforcement on every referenced resource
+- Hardware abstraction layer: provider-independent backend contract (capabilities, measured availability, circuit validation, job lifecycle) with the sandboxed Aer simulator honestly labeled `LOCAL_SIMULATOR` — no provider is reported available without measured evidence, and remote-simulator/QPU adapters remain unwritten rather than stubbed
+- Execution provenance: every execution artifact and capsule records the backend and controlled environment that produced it (backward compatible; older capsules report `null`)
+- Layered health endpoint (`/api/health`): application, database, sandbox, and runtime availability measured independently — never inferred from configuration
+- Unified error taxonomy with stable machine-readable codes; rate-limit events logged for observability
+- Observatory UI: `/observatory` artifact browsing and detail pages, `/benchmarks`, working `/projects`, and Observatory navigation
+- Open-source documentation set: CONTRIBUTING, SECURITY, production deployment guide, observatory model, and the research artifact specification
+
+**Not yet implemented:** real QPU integration (requires provider credentials; the backend contract is ready), noise models, transpilation visualization.
 
 ## Architecture
 
@@ -290,12 +306,20 @@ quantoo/
 │   │   ├── learn/        # Learning topics
 │   │   ├── progress/     # User progress tracking
 │   │   ├── executions/   # Run submissions & history (Phase 4)
-│   │   └── drafts/       # Code draft persistence (Phase 4)
+│   │   ├── drafts/       # Code draft persistence (Phase 4)
+│   │   ├── semantic/     # Semantic observatory (Phase 6)
+│   │   ├── compatibility/ # Compatibility lab (Phase 7)
+│   │   ├── artifacts/    # Research artifacts (Phase 8)
+│   │   ├── benchmarks/   # Benchmark corpus & runs (Phase 8)
+│   │   ├── projects/     # Project evidence containers (Phase 8)
+│   │   └── hardware/     # Backend registry & availability (Phase 8)
 │   ├── dashboard/        # Dashboard
 │   ├── problems/         # Problem catalog UI
 │   │   └── [slug]/solve/ # Quantum workspace (Phase 4)
 │   ├── learn/            # Learning paths UI
-│   ├── projects/         # Projects
+│   ├── observatory/      # Research artifact browsing (Phase 8)
+│   ├── benchmarks/       # Benchmark corpus UI (Phase 8)
+│   ├── projects/         # Projects (Phase 8)
 │   ├── profile/          # User profile
 │   └── settings/         # Settings
 ├── components/
@@ -306,6 +330,13 @@ quantoo/
 │   ├── auth/             # Auth service, session, tokens, email
 │   ├── exec/             # Execution: sandbox, limits, validation, service
 │   ├── judge/            # Quantum Judge checks
+│   ├── semantic/         # Semantic records, fingerprints, capsules (Phase 6)
+│   ├── compat/           # Environment registry, compatibility engine (Phase 7)
+│   ├── artifacts/        # Research artifact types, integrity, service (Phase 8)
+│   ├── benchmarks/       # Benchmark corpus, runs, comparison (Phase 8)
+│   ├── projects/         # Project service & validation (Phase 8)
+│   ├── hardware/         # Backend contract, registry, availability (Phase 8)
+│   ├── errors/           # Unified error taxonomy (Phase 8)
 │   ├── server/           # Server-side services
 │   │   ├── problem-service.ts
 │   │   ├── learning-service.ts
@@ -334,10 +365,13 @@ quantoo/
 | 3 | Problem & Content Engine | ✅ Complete |
 | 4 | Code Workspace + Execution + Judge | ✅ Complete |
 | 5 | Quantum Debugger | ✅ Complete |
-| 6 | Noise, Optimization & Hardware-Aware Simulation | Planned |
-| 7 | Real Hardware + Transpilation | Planned |
-| 8 | Projects + Portfolio + Skill Intelligence | Planned |
-| 9 | AI Tutor + Public Showcase + Production Hardening | Planned |
+| 6 | Quantum Semantic Observatory | ✅ Complete |
+| 7 | Quantum Compatibility & Reproducibility Lab | ✅ Complete |
+| 8 | Quantum Software Observatory: Production & Research Launch | ✅ Complete |
+
+The planned phase sequence is complete. Development continues as normal
+open-source evolution: releases, fixes, performance, security updates,
+provider integrations, and community contributions.
 
 See [docs/roadmap.md](docs/roadmap.md) for detailed phase breakdowns.
 
@@ -348,17 +382,21 @@ See [docs/roadmap.md](docs/roadmap.md) for detailed phase breakdowns.
 - No stack traces or database errors exposed to users
 - Secrets excluded from version control via `.gitignore`
 - Structured logging excludes sensitive data
+- Untrusted code executed only in sandboxed, resource-capped, network-isolated containers
+- Imported capsules, packages, and artifacts validated structurally and never executed
 
-See [docs/security/security-baseline.md](docs/security/security-baseline.md).
+See [SECURITY.md](SECURITY.md) for the reporting process and the full
+security model, and [docs/security/security-baseline.md](docs/security/security-baseline.md).
 
 ## Quantum Architecture (Future)
 
-The platform will eventually support:
+Remaining on the post-roadmap horizon (documented as future because the
+integrations do not exist yet):
 
-- **Quantum Judge** — Multi-layer evaluation (structural, functional, state, distribution, unitary, observable, entanglement, statistical, resource, noise, hardware)
-- **Quantum Debugger** — Step-through debugging with breakpoints, state snapshots, probability distributions, Bloch sphere visualization
-- **Noise Simulation** — Real-world noise models and decoherence
-- **Real Hardware** — IBM Quantum, Google Cirq integration
+- **Real hardware** — QPU access through the Phase 8 backend contract, once a provider integration with real credentials exists
+- **Noise simulation** — noise models and decoherence-aware semantic analysis
+- **Transpilation visualization** — transpiler pass inspection
+- **Cross-framework execution** — PennyLane/Cirq runtime environments
 
 See [docs/architecture/](docs/architecture/) for detailed designs.
 

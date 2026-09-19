@@ -20,6 +20,7 @@ import {
   getEnvironmentAvailability,
 } from "@/lib/compat/environments";
 import { judgeSubmission, SUPPORTED_SPEC_TYPES, type TestSpec } from "@/lib/judge";
+import { LOCAL_SIMULATOR_ID } from "@/lib/hardware/local-simulator";
 import type {
   ExecutionErrorCode,
   RunResponse,
@@ -224,6 +225,9 @@ export async function runSubmission(
   // sandbox mode. Users can never reference an image directly — only
   // registry ids, which resolve to vetted runtime images server-side.
   let environmentImage: string | undefined;
+  // Registry id of the selected environment, recorded as execution
+  // provenance (which controlled runtime produced this artifact).
+  let selectedEnvironmentId: string | null = null;
   if (input.environmentId !== undefined) {
     const profile = getEnvironmentProfile(input.environmentId);
     if (!profile) {
@@ -248,6 +252,7 @@ export async function runSubmission(
         );
       }
     }
+    selectedEnvironmentId = profile.id;
     environmentImage = profile.isDefault ? undefined : profile.image;
   }
 
@@ -293,6 +298,11 @@ export async function runSubmission(
         errorMessage: sandbox.error?.message ?? null,
         durationMs: sandbox.durationMs,
         completedAt: new Date(),
+        executionResult: {
+          outcomes: {},
+          environment: sandbox.environment ?? null,
+          backend: { backendId: LOCAL_SIMULATOR_ID, environmentId: selectedEnvironmentId },
+        } as unknown as import("@prisma/client").Prisma.InputJsonValue,
       },
     });
 
@@ -325,6 +335,7 @@ export async function runSubmission(
       executionResult: {
         outcomes: sanitizeOutcomesForStorage(sandbox.outcomes),
         environment: sandbox.environment ?? null,
+        backend: { backendId: LOCAL_SIMULATOR_ID, environmentId: selectedEnvironmentId },
       } as unknown as import("@prisma/client").Prisma.InputJsonValue,
       durationMs,
       completedAt: new Date(),

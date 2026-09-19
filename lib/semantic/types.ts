@@ -268,6 +268,16 @@ export interface ExecutionCapsule {
   semanticRecord: SemanticRecord | null;
   judge: JudgeResult | null;
   environment: EnvironmentFingerprint;
+  /**
+   * Execution backend provenance. The platform's own simulator is
+   * reported as a simulator — never as quantum hardware. Absent (null)
+   * for capsules created before backend provenance was recorded.
+   */
+  backend: {
+    backendId: string;
+    /** Registry id of the controlled runtime environment, when known. */
+    environmentId: string | null;
+  } | null;
   /** Trace of the submission scenario, kept for first-divergence localization. */
   trace: TraceStep[] | null;
 }

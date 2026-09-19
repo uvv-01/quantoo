@@ -12,6 +12,8 @@
  *   - Not suitable for distributed deployments without Redis
  */
 
+import { logger } from "@/lib/logger";
+
 interface RateLimitEntry {
   count: number;
   resetAt: number;
@@ -66,6 +68,14 @@ export function checkRateLimit(
   }
 
   if (entry.count >= config.maxRequests) {
+    // Observability: count denials by action (the key carries the action
+    // name; user identifiers are never logged).
+    const action = key.split(":")[1] ?? "unknown";
+    try {
+      logger.warn("rate limit exceeded", { action });
+    } catch {
+      // Logging must never break the limiter.
+    }
     return {
       allowed: false,
       remaining: 0,
@@ -110,6 +120,16 @@ export const RATE_LIMITS = {
   // a baseline run per request, so the per-user budget is tighter than a
   // single execution.
   compatibility: { maxRequests: 6, windowSeconds: 10 * 60 } as RateLimitConfig,
+  // Observatory surfaces: publishing snapshots evidence (cheap), but the
+  // inventory endpoints read the database, so keep a moderate budget.
+  artifact: { maxRequests: 30, windowSeconds: 10 * 60 } as RateLimitConfig,
+  // Benchmark runs execute real circuits through the sandbox.
+  benchmark: { maxRequests: 6, windowSeconds: 10 * 60 } as RateLimitConfig,
+  // Projects are cheap metadata operations.
+  project: { maxRequests: 60, windowSeconds: 10 * 60 } as RateLimitConfig,
+  // Hardware inventory probing shells out to the container tool with a
+  // short timeout; a small budget prevents probe storms.
+  hardware: { maxRequests: 30, windowSeconds: 10 * 60 } as RateLimitConfig,
 } as const;
 
 /**

@@ -2,8 +2,14 @@ import { NextResponse } from "next/server";
 
 /**
  * Health check endpoint.
- * Returns application status. Database connectivity is checked
- * only when DATABASE_URL is configured.
+ *
+ * Layered, evidence-based checks:
+ *   - database: connectivity probed when configured
+ *   - runtime: sandbox mode measured (docker image probe / fallback)
+ *
+ * The runtime check reports the sandbox mode's honest health. A
+ * "hardware provider" section appears only when a provider integration
+ * actually exists; credentials alone never imply availability.
  */
 
 interface HealthResponse {
@@ -12,6 +18,7 @@ interface HealthResponse {
   timestamp: string;
   version: string;
   database?: "connected" | "disconnected" | "not_configured";
+  runtime?: "available" | "unavailable" | "not_configured";
 }
 
 export async function GET(): Promise<NextResponse<HealthResponse>> {
@@ -29,7 +36,24 @@ export async function GET(): Promise<NextResponse<HealthResponse>> {
     }
   }
 
-  const status = databaseStatus === "disconnected" ? "degraded" : "ok";
+  let runtimeStatus: "available" | "unavailable" | "not_configured" = "not_configured";
+  try {
+    const { describeSandboxAvailability } = await import("@/lib/hardware/availability");
+    const availability = await describeSandboxAvailability();
+    runtimeStatus =
+      availability.status === "AVAILABLE"
+        ? "available"
+        : availability.status === "UNAVAILABLE"
+          ? "unavailable"
+          : "not_configured";
+  } catch {
+    runtimeStatus = "unavailable";
+  }
+
+  const status =
+    databaseStatus === "disconnected" || runtimeStatus === "unavailable"
+      ? "degraded"
+      : "ok";
 
   return NextResponse.json({
     status,
@@ -37,5 +61,6 @@ export async function GET(): Promise<NextResponse<HealthResponse>> {
     timestamp,
     version: process.env.npm_package_version ?? "0.1.0",
     database: databaseStatus,
+    runtime: runtimeStatus,
   });
 }

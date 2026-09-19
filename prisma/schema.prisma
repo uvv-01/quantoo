@@ -116,6 +116,9 @@ model User {
   semanticComparisons       SemanticComparison[]
   semanticReproductions     SemanticReproduction[]
   compatibilityExperiments  CompatibilityExperiment[]
+  projects                  Project[]
+  researchArtifacts         ResearchArtifact[]
+  benchmarkRuns             BenchmarkRun[]
 
   @@map("users")
 }
@@ -324,6 +327,7 @@ model Problem {
   submissions             Submission[]
   drafts                  ProblemDraft[]
   SemanticBaseline        SemanticBaseline[]
+  researchArtifacts       ResearchArtifact[]
   CompatibilityExperiment CompatibilityExperiment[]
 
   @@index([difficulty])
@@ -533,9 +537,10 @@ model CompatibilityExperiment {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  problem Problem            @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  runs    CompatibilityRun[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem           Problem            @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  runs              CompatibilityRun[]
+  researchArtifacts ResearchArtifact[]
 
   @@index([userId, createdAt])
   @@index([problemId])
@@ -563,6 +568,133 @@ model CompatibilityRun {
   @@index([experimentId, createdAt])
   @@index([environmentId])
   @@map("compatibility_runs")
+}
+
+// ========================================
+// Quantum Software Observatory (Phase 8)
+// ========================================
+
+/// A user-organized container for evidence: problems worked on,
+/// executions, experiments, and research artifacts. Items reference
+/// existing resources by id and type — payloads are never duplicated.
+model Project {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ProjectItem[]
+
+  @@index([userId, updatedAt])
+  @@map("projects")
+}
+
+/// One evidence reference within a project. The referenced resource must
+/// belong to the project owner (enforced by the service layer); the
+/// uniqueness constraint prevents redundant entries.
+model ProjectItem {
+  id        String   @id @default(uuid())
+  projectId String
+  itemType  String // PROBLEM | SUBMISSION | COMPATIBILITY_EXPERIMENT | RESEARCH_ARTIFACT
+  itemId    String
+  note      String?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, itemType, itemId])
+  @@index([projectId, createdAt])
+  @@map("project_items")
+}
+
+/// A research artifact: the top-level container preserving provenance for
+/// published evidence. Publishing snapshots the current evidence into an
+/// immutable version; artifacts are never mutated in place.
+model ResearchArtifact {
+  id            String   @id @default(uuid())
+  userId        String
+  // Provenance pointers to the source of the evidence. The experiment
+  // reference uses SetNull: artifacts survive even if the source
+  // experiment is ever removed, because versions carry the snapshot.
+  experimentId  String?
+  problemId     String?
+  title         String
+  description   String?
+  visibility    String   @default("PRIVATE") // PRIVATE | PUBLIC
+  latestVersion Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user       User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem    Problem?                  @relation(fields: [problemId], references: [id], onDelete: SetNull)
+  experiment CompatibilityExperiment?  @relation(fields: [experimentId], references: [id], onDelete: SetNull)
+  versions   ResearchArtifactVersion[]
+
+  @@index([userId, updatedAt])
+  @@index([visibility, updatedAt])
+  @@map("research_artifacts")
+}
+
+/// An immutable published version of a research artifact. The payload is
+/// a quantoo.artifact.v1 document, integrity-hashed at publish time.
+/// Versions are never modified; corrections create a new version.
+model ResearchArtifactVersion {
+  id          String   @id @default(uuid())
+  artifactId  String
+  version     Int
+  payload     Json
+  payloadHash String // sha-256 over the canonical serialization of payload
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  artifact ResearchArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@unique([artifactId, version])
+  @@index([artifactId, version])
+  @@map("research_artifact_versions")
+}
+
+/// A named benchmark definition: a fixed program and execution
+/// configuration that can be run in any registered environment to
+/// measure behavior over time. Definitions are application-managed.
+model Benchmark {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String
+  category    String // STATE_PREPARATION | ENTANGLEMENT | MEASUREMENT | ALGORITHMIC | COMPATIBILITY
+  sourceCode  String   @db.Text
+  shots       Int      @default(1024)
+  // Server-generated per run when null; recorded on each run either way.
+  seed        Int?
+  createdAt   DateTime @default(now())
+
+  runs BenchmarkRun[]
+
+  @@map("benchmarks")
+}
+
+/// One measured execution of a benchmark in one environment. Every run is
+/// a real sandboxed execution recorded as a submission; nothing is
+/// synthesized. Comparisons between runs are computed on demand.
+model BenchmarkRun {
+  id            String   @id @default(uuid())
+  benchmarkId   String
+  userId        String
+  environmentId String
+  submissionId  String
+  seed          Int?
+  createdAt     DateTime @default(now())
+
+  benchmark Benchmark @relation(fields: [benchmarkId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([benchmarkId, createdAt])
+  @@index([userId, createdAt])
+  @@map("benchmark_runs")
 }
 
 model UserProblemProgress {

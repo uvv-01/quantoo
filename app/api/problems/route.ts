@@ -13,14 +13,11 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const query = problemListQuerySchema.safeParse({
-      page: searchParams.get("page"),
-      pageSize: searchParams.get("pageSize"),
-      difficulty: searchParams.get("difficulty"),
-      concept: searchParams.get("concept"),
-      tag: searchParams.get("tag"),
-      search: searchParams.get("search"),
-    });
+    // Only present query parameters are validated; absent keys fall back
+    // to schema defaults. Passing explicit nulls would fail validation.
+    const query = problemListQuerySchema.safeParse(
+      Object.fromEntries(searchParams.entries()),
+    );
 
     if (!query.success) {
       return NextResponse.json(

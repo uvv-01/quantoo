@@ -1,4 +1,4 @@
-# Quantum Daily — Development Roadmap
+# Quantoo — Development Roadmap
 
 ## Phase 1: Foundation ✅
 
@@ -155,43 +155,53 @@
   both sides), full experiment flow over the real DB, cross-user
   isolation, and tampered-package rejection
 
-## Phase 7: Noise, Optimization & Hardware-Aware Simulation
+## Phase 8: Quantum Software Observatory — Production & Research Launch (delivered)
 
-- [ ] Noise model simulation
-- [ ] Decoherence modeling
-- [ ] Circuit optimization techniques
-- [ ] Gate count and depth reduction
-- [ ] Transpilation pipeline
-- [ ] Hardware-aware circuit compilation
-- [ ] Noise-aware debugging
-
-## Phase 7: Real Hardware + Transpilation
-
-- [ ] IBM Quantum integration
-- [ ] Google Cirq integration
-- [ ] Real QPU execution
+- [x] Research artifacts (quantoo.artifact.v1): provenance-preserving
+  evidence documents assembled from compatibility experiments, with
+  capsules, compatibility reports, and reproduction reports frozen at
+  publish time
+- [x] Artifact versioning and integrity: immutable versions,
+  sha-256 hashes over canonical JSON, tamper-evident export envelope,
+  defensive import validation (schema, size, depth, hash checks) —
+  import never executes code
+- [x] Artifact visibility (PRIVATE / PUBLIC) with explicit user-driven
+  publishing and server-enforced ownership; no accidental exposure of
+  private source
+- [x] Benchmark corpus: code-defined official benchmarks (state
+  preparation, entanglement, measurement, noise sensitivity) with
+  seeded, evidence-producing runs through the standard sandbox pipeline
+- [x] Benchmark comparison: run-to-run behavioral comparison with
+  classification of correctness / behavioral / resource regressions
+- [x] Projects: user-organized evidence containers referencing real
+  problems, executions, experiments, and artifacts with ownership
+  enforcement on every referenced resource
+- [x] Hardware abstraction layer: provider-independent backend contract
+  (capabilities, availability probing, job lifecycle), local Aer
+  simulator adapter honestly labeled LOCAL_SIMULATOR, and an
+  /api/hardware/backends endpoint — no provider is claimed available
+  without measured evidence, and remote-simulator/QPU adapters remain
+  unwritten rather than stubbed
+- [x] Execution provenance: every execution artifact and capsule now
+  records the backend and controlled environment that produced it
+  (backward compatible; older capsules report null)
+- [x] Layered health endpoint: application / database / sandbox / runtime
+  availability each measured independently, never guessed from config
+- [x] Unified error taxonomy with stable machine-readable codes and
+  rate-limit event logging
+- [x] Observatory UI: artifact browsing and detail pages, benchmarks
+  page, working projects page, and Observatory navigation
+- [x] Open-source documentation set: CONTRIBUTING, SECURITY, deployment
+  guide, observatory model, and artifact specification
+- [ ] Real QPU integration (requires provider credentials and accounts;
+  the backend contract is ready for a real adapter)
+- [ ] Noise-model simulation and decoherence modeling
 - [ ] Transpilation visualization
-- [ ] Queue management
-- [ ] Results comparison (sim vs. hardware)
-- [ ] Hybrid classical-quantum workflows
+- [ ] Unlisted artifact visibility state
 
-## Phase 8: Projects + Portfolio + Skill Intelligence
+## Post-roadmap
 
-- [ ] Guided project templates
-- [ ] Project submission and validation
-- [ ] Portfolio generation
-- [ ] Public profile pages
-- [ ] Skill tracking and assessment
-- [ ] Learning analytics
-- [ ] Achievement system
-
-## Phase 9: AI Tutor + Public Showcase + Production Hardening
-
-- [ ] AI-assisted learning hints
-- [ ] Adaptive problem recommendations
-- [ ] Natural language quantum explanations
-- [ ] Public showcase gallery
-- [ ] Performance optimization
-- [ ] Monitoring and alerting
-- [ ] Documentation completeness
-- [ ] Production deployment
+The planned phase sequence is complete. Future development proceeds as
+normal open-source evolution: releases, bug fixes, performance work,
+security updates, provider integrations, research improvements, new
+experiments, benchmarks, and compatibility environments.

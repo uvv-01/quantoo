@@ -61,6 +61,8 @@ export const ROUTES = {
   problemDetail: (slug: string) => `/problems/${slug}`,
   learn: "/learn",
   learnTopic: (slug: string) => `/learn/${slug}`,
+  observatory: "/observatory",
+  benchmarks: "/benchmarks",
   projects: "/projects",
   profile: "/profile",
   settings: "/settings",

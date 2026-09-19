@@ -12,6 +12,8 @@ const navItems = [
   { href: ROUTES.dashboard, label: "Dashboard" },
   { href: ROUTES.problems, label: "Problems" },
   { href: ROUTES.learn, label: "Learn" },
+  { href: ROUTES.observatory, label: "Observatory" },
+  { href: ROUTES.benchmarks, label: "Benchmarks" },
   { href: ROUTES.projects, label: "Projects" },
 ];
 

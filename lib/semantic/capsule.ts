@@ -98,7 +98,30 @@ export async function buildExecutionCapsule(submissionId: string): Promise<Execu
         dependencies: {},
         execution: { shots: null, seed: null, optimization: null },
       },
+    backend: backendProvenance(artifact),
     trace,
+  };
+}
+
+/**
+ * Read backend provenance from a stored execution artifact. Unknown for
+ * older artifacts (the field was added later); null is reported honestly
+ * rather than defaulted to the local simulator.
+ */
+function backendProvenance(artifact: unknown): {
+  backendId: string;
+  environmentId: string | null;
+} | null {
+  if (!artifact || typeof artifact !== "object") return null;
+  const backend = (artifact as { backend?: unknown }).backend;
+  if (!backend || typeof backend !== "object") return null;
+  const b = backend as { backendId?: unknown; environmentId?: unknown };
+  if (typeof b.backendId !== "string" || b.backendId.length === 0 || b.backendId.length > 64) {
+    return null;
+  }
+  return {
+    backendId: b.backendId,
+    environmentId: typeof b.environmentId === "string" ? b.environmentId : null,
   };
 }
 
@@ -261,6 +284,13 @@ export function validateExecutionCapsule(json: string): ExecutionCapsule {
     semanticRecord: z.unknown().optional(),
     judge: z.unknown().optional(),
     environment: z.unknown().optional(),
+    backend: z
+      .object({
+        backendId: z.string().min(1).max(64),
+        environmentId: z.string().max(64).nullable(),
+      })
+      .nullable()
+      .optional(),
     trace: z.array(traceStepSchema).max(2_000).nullable(),
   });
 
