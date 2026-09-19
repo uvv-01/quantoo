@@ -67,6 +67,12 @@ export async function executeInSandbox(
   inspect: string[] = ["density_matrix", "unitary"],
   /** Optional deterministic seed for sampled measurements (reproduction). */
   seed?: number,
+  /**
+   * Registry-vetted runtime image override (Phase 7 environments). The
+   * caller must have resolved the image through the environment registry;
+   * this module never accepts user-supplied image references.
+   */
+  image?: string,
 ): Promise<SandboxResult> {
   const mode = getSandboxMode();
   if (mode === "disabled") {
@@ -76,7 +82,7 @@ export async function executeInSandbox(
   try {
     const result =
       mode === "docker"
-        ? await runDocker(sourceCode, scenarios, shots, limits, inspect, seed)
+        ? await runDocker(sourceCode, scenarios, shots, limits, inspect, seed, image)
         : await runHostFallback(sourceCode, scenarios, shots, limits, inspect, seed);
     return { ...result, durationMs: Date.now() - started };
   } catch (error) {
@@ -99,6 +105,7 @@ async function runDocker(
   limits: ExecutionLimitsParam,
   inspect: string[],
   seed?: number,
+  image?: string,
 ): Promise<Omit<SandboxResult, "durationMs">> {
   const payload = JSON.stringify({
     sourceCode,
@@ -125,7 +132,7 @@ async function runDocker(
     "--cap-drop", "ALL",
     "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
     "-e", "PYTHONUNBUFFERED=1",
-    RUNTIME_IMAGE,
+    image ?? RUNTIME_IMAGE,
   ];
   const tmp = await mkdtemp(path.join(tmpdir(), "quantoo-exec-"));
   const reqPath = path.join(tmp, "request.json");

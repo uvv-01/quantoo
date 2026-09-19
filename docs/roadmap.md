@@ -113,9 +113,47 @@
   Zod validation, rate limits, and server-side verdict recomputation
 - [x] Semantic Observer UI inside the workspace with baseline and
   reproduction controls and capsule export
-- [ ] Cross-version execution farm (Phase 7 — Compatibility Lab)
 - [ ] Cross-framework execution (Phase 7+; abstraction ready)
 - [ ] Noise-aware semantic analysis (later phase)
+
+## Phase 7: Quantum Compatibility & Reproducibility Lab (delivered)
+
+- [x] Controlled environment registry (lib/compat/environments.ts):
+  code-declared profiles with concrete versioned names (never "latest"),
+  measured availability probing (docker image inspect with TTL cache),
+  and honest UNAVAILABLE reporting — users select profiles, never define,
+  install, or fetch them
+- [x] Controlled legacy runtime image (qiskit 1.1.2 / qiskit-aer 0.14.2 /
+  numpy 1.26.4) built from services/quantum-runtime with a pinned
+  requirements-legacy.txt and parameterized Dockerfile
+- [x] Environment selection threaded through the standard execution
+  service and sandbox — registry ids only; every environment run passes
+  the same auth, limits, judging, and persistence as any other execution
+- [x] Compatibility experiments (CompatibilityExperiment /
+  CompatibilityRun): one program, one baseline execution, one shared
+  shots/seed configuration, executed in each candidate environment
+- [x] Evidence-backed compatibility reports (quantoo.compatibility.v1)
+  with per-candidate dimensions (STRUCTURE / PROBABILITY / MEASUREMENT /
+  BEHAVIOR / RESOURCE / ENVIRONMENT) and honest overall statuses
+  (COMPATIBLE, COMPATIBLE_WITH_RESOURCE_CHANGE, BEHAVIORALLY_DIFFERENT,
+  EXECUTION_FAILED, INSUFFICIENT_EVIDENCE)
+- [x] Reproduction report environment dimension: reproducing through a
+  different runtime is visible as ENVIRONMENT DIFFERENT (behavior remains
+  the deciding evidence)
+- [x] Versioned reproducibility packages (quantoo.experiment.v1) with
+  export and untrusted-input import: schema pinned, size bounded,
+  environment ids filtered against the local registry, source executed
+  only inside the sandbox, no field ever interpreted as a command
+- [x] Compatibility API namespace (/api/compatibility/*) with session
+  auth, ownership enforcement, Zod validation, dedicated rate limit, and
+  server-side verdict recomputation
+- [x] Compatibility Lab UI inside the workspace: environment matrix with
+  availability labels, experiment execution, per-dimension evidence,
+  "Inspect at divergence" debugger deep link, package export/import
+- [x] Tests: registry/fingerprint/policy units, real cross-environment
+  integration (host 1.2.4 vs legacy 1.1.2 image with genuine metadata on
+  both sides), full experiment flow over the real DB, cross-user
+  isolation, and tampered-package rejection
 
 ## Phase 7: Noise, Optimization & Hardware-Aware Simulation
 

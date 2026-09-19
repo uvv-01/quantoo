@@ -24,6 +24,7 @@ import {
   resolveComparisonPolicy,
 } from "@/lib/semantic/compare";
 import { extractSemanticRecord } from "@/lib/semantic/record";
+import { compareEnvironmentFingerprints } from "@/lib/compat/environments";
 import type {
   ComparisonPolicy,
   SemanticComparison,
@@ -429,13 +430,35 @@ export async function reproduceExecution(
     overallStatus = "INSUFFICIENT_EVIDENCE";
   }
 
-  const checks = comparison.differences
-    .filter((d) => d.dimension !== "SOURCE")
-    .map((d) => ({
-      dimension: d.dimension,
-      status: d.status,
-      message: d.message,
-    }));
+  // Environment dimension (Phase 7): compare the recorded environment
+  // fingerprints so a reproduction through a different runtime is visible
+  // as ENVIRONMENT DIFFERENT even when behavior agrees. A reproduced
+  // verdict still requires behavior to match — the environment dimension
+  // is reported, never silently folded into the verdict.
+  const environmentCheck = (() => {
+    const diff = compareEnvironmentFingerprints(
+      record.environment,
+      reproduced.record.environment,
+    );
+    return {
+      dimension: "ENVIRONMENT" as const,
+      status: diff.same ? ("PASS" as const) : ("DIFFERENT" as const),
+      message: diff.same
+        ? "Recorded execution environment metadata matches."
+        : `Recorded execution environment metadata differs: ${diff.differences.join("; ")}.`,
+    };
+  })();
+
+  const checks = [
+    ...comparison.differences
+      .filter((d) => d.dimension !== "SOURCE" && d.dimension !== "ENVIRONMENT")
+      .map((d) => ({
+        dimension: d.dimension,
+        status: d.status,
+        message: d.message,
+      })),
+    environmentCheck,
+  ];
 
   const limitations = [...comparison.limitations];
   if (seed === undefined) {

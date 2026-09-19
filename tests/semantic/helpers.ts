@@ -27,6 +27,19 @@ interface RunnerPayload {
 
 /** Execute a source program through the real runner and return its outcome. */
 export function runRealScenario(sourceCode: string, shots = 4096, seed = 42): ScenarioOutcome {
+  return runRealScenarioFull(sourceCode, shots, seed).outcome;
+}
+
+/**
+ * Execute through the real runner and return the outcome together with
+ * the runner's top-level environment metadata (versions observed inside
+ * the runtime), for cross-environment comparisons.
+ */
+export function runRealScenarioFull(
+  sourceCode: string,
+  shots = 4096,
+  seed = 42,
+): { outcome: ScenarioOutcome; environment: unknown } {
   const request = JSON.stringify({
     sourceCode,
     scenarios: [{ name: "submission" }],
@@ -49,23 +62,25 @@ export function runRealScenario(sourceCode: string, shots = 4096, seed = 42): Sc
   if (!payload.ok || !payload.outcomes) {
     throw new Error(`runner failed: ${payload.error?.code} ${payload.error?.message}`);
   }
-  return payload.outcomes["submission"];
+  return { outcome: payload.outcomes["submission"], environment: payload.environment };
 }
 
 /** Bell state H(0)+CX: ~50/50 over |00>, |11>, with trace. */
+export const BELL_SOURCE =
+  "from qiskit import QuantumCircuit\nresult = QuantumCircuit(2,2)\nresult.h(0)\nresult.cx(0,1)\nresult.measure([0,1],[0,1])";
+
+/** X instead of H: |11> always. Structurally similar, behaviorally different. */
+export const X_SOURCE =
+  "from qiskit import QuantumCircuit\nresult = QuantumCircuit(2,2)\nresult.x(0)\nresult.cx(0,1)\nresult.measure([0,1],[0,1])";
+
+/** Bell state H(0)+CX: ~50/50 over |00>, |11>, with trace. */
 export function bellOutcome(shots = 4096): ScenarioOutcome {
-  return runRealScenario(
-    "from qiskit import QuantumCircuit\nresult = QuantumCircuit(2,2)\nresult.h(0)\nresult.cx(0,1)\nresult.measure([0,1],[0,1])",
-    shots,
-  );
+  return runRealScenario(BELL_SOURCE, shots);
 }
 
 /** X instead of H: |11> always. Structurally similar, behaviorally different. */
 export function bellOutcomeWithX(shots = 4096): ScenarioOutcome {
-  return runRealScenario(
-    "from qiskit import QuantumCircuit\nresult = QuantumCircuit(2,2)\nresult.x(0)\nresult.cx(0,1)\nresult.measure([0,1],[0,1])",
-    shots,
-  );
+  return runRealScenario(X_SOURCE, shots);
 }
 
 /** Zero state: |00> always (used for exact-probability fixtures). */

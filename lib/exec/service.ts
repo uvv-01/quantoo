@@ -13,8 +13,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { executeInSandbox } from "@/lib/exec/sandbox";
+import { executeInSandbox, getSandboxMode } from "@/lib/exec/sandbox";
 import { getExecutionLimits } from "@/lib/exec/limits";
+import {
+  getEnvironmentProfile,
+  getEnvironmentAvailability,
+} from "@/lib/compat/environments";
 import { judgeSubmission, SUPPORTED_SPEC_TYPES, type TestSpec } from "@/lib/judge";
 import type {
   ExecutionErrorCode,
@@ -46,10 +50,18 @@ export interface RunInput {
   shots?: number;
   /**
    * Optional deterministic seed for sampled measurements. Used by the
-   * Phase 6 reproduction flow (the recorded seed of the original run);
-   * the public run API does not accept client seeds.
+   * Phase 6 reproduction flow (the recorded seed of the original run)
+   * and Phase 7 experiments (one shared, server-generated seed so that
+   * every environment sees the same sampling configuration). The public
+   * run API does not accept client seeds.
    */
   seed?: number;
+  /**
+   * Optional registered environment profile id (Phase 7). Must resolve
+   * through the environment registry to a vetted runtime image; client
+   * requests can never name an image directly.
+   */
+  environmentId?: string;
 }
 
 const MAX_SOURCE_BYTES = 50_000;
@@ -207,6 +219,38 @@ export async function runSubmission(
       ? Math.min(input.shots, limits.maxShots)
       : Math.min(4_096, limits.maxShots);
 
+  // Phase 7 environments: the id must exist in the code-defined registry,
+  // and the profile's measured availability must support the deployment's
+  // sandbox mode. Users can never reference an image directly — only
+  // registry ids, which resolve to vetted runtime images server-side.
+  let environmentImage: string | undefined;
+  if (input.environmentId !== undefined) {
+    const profile = getEnvironmentProfile(input.environmentId);
+    if (!profile) {
+      throw new ExecutionRequestError(
+        "INVALID_REQUEST",
+        "Unknown execution environment.",
+      );
+    }
+    const mode = getSandboxMode();
+    if (mode === "host-fallback" && !profile.isDefault) {
+      throw new ExecutionRequestError(
+        "SANDBOX_ERROR",
+        "The selected environment is not available in this deployment: only the pinned default runtime can run without containers.",
+      );
+    }
+    if (mode === "docker" && !profile.isDefault) {
+      const availability = await getEnvironmentAvailability(profile.id);
+      if (availability.status !== "AVAILABLE") {
+        throw new ExecutionRequestError(
+          "SANDBOX_ERROR",
+          availability.reason ?? "Execution environment is not available.",
+        );
+      }
+    }
+    environmentImage = profile.isDefault ? undefined : profile.image;
+  }
+
   // Persist the submission first so every execution has an artifact, even
   // if the sandbox never starts.
   const submission = await prisma.submission.create({
@@ -226,6 +270,7 @@ export async function runSubmission(
     limits,
     ["density_matrix", "unitary"],
     input.seed,
+    environmentImage,
   );
 
   if (!sandbox.ok) {

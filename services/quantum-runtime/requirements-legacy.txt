@@ -1,0 +1,14 @@
+# Controlled legacy environment (Phase 7 compatibility lab).
+#
+# This pin set exists so the same runner can execute inside a second,
+# explicitly provisioned environment. It is built only by the operator:
+#
+#   docker build -t quantoo/quantum-runtime:legacy-1.1 \
+#     --build-arg REQUIREMENTS=requirements-legacy.txt services/quantum-runtime
+#
+# There is no code path that installs packages at user request; when this
+# image has not been built, the environment registry reports the profile
+# as unavailable instead of attempting an installation.
+qiskit==1.1.2
+qiskit-aer==0.14.2
+numpy==1.26.4

@@ -106,6 +106,10 @@ export const RATE_LIMITS = {
   // Semantic analysis (compare/reproduce): reproduction runs a real
   // execution, so this shares the conservative execution budget.
   semantic: { maxRequests: 20, windowSeconds: 10 * 60 } as RateLimitConfig,
+  // Compatibility experiments execute up to 5 candidate environments plus
+  // a baseline run per request, so the per-user budget is tighter than a
+  // single execution.
+  compatibility: { maxRequests: 6, windowSeconds: 10 * 60 } as RateLimitConfig,
 } as const;
 
 /**

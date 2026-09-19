@@ -22,6 +22,7 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 **Phase 4 — Code Workspace, Execution & Judge** ✅
 **Phase 5 — Quantum Debugger & Execution Traces** ✅
 **Phase 6 — Quantum Semantic Observatory** ✅
+**Phase 7 — Quantum Compatibility & Reproducibility Lab** ✅
 
 ### Phase 1 — Foundation
 - Next.js application with TypeScript strict mode
@@ -107,7 +108,17 @@ Quantum Daily builds this workflow incrementally across nine development phases.
 - Semantic Observer UI embedded in the workspace: execution selection, per-dimension evidence, baseline management, one-click reproduction, capsule download, and "Inspect at divergence" deep link into the Phase 5 debugger
 - Test coverage: statistics and canonical-form units, real-Qiskit comparison scenarios (equivalent representations, real behavioral differences, resource-only regressions, environment changes, reproduction), and real-database security tests (401s, cross-user isolation, malformed capsules, foreign baselines)
 
-**Not yet implemented:** cross-version execution farm, cross-framework execution, noise models, transpilation, real hardware, projects, portfolio, AI tutor.
+### Phase 7 — Quantum Compatibility & Reproducibility Lab
+- Controlled environment registry: code-declared profiles with concrete versions (default Qiskit 1.2.4 runtime plus a pinned legacy Qiskit 1.1.2 image), measured availability probing with honest UNAVAILABLE reporting — users select environments, never define, install, or fetch them
+- Same-program cross-environment execution: a compatibility experiment re-runs the user's baseline program in each candidate environment through the standard sandboxed pipeline with one shared shots/seed configuration, so environments differ only by their runtime
+- Evidence-backed compatibility reports (`quantoo.compatibility.v1`): per-candidate STRUCTURE / PROBABILITY / MEASUREMENT / BEHAVIOR / RESOURCE / ENVIRONMENT dimensions with honest statuses (COMPATIBLE, COMPATIBLE_WITH_RESOURCE_CHANGE, BEHAVIORALLY_DIFFERENT, EXECUTION_FAILED, INSUFFICIENT_EVIDENCE) — structural change alone is never a behavioral regression
+- Reproduction report now records an explicit ENVIRONMENT check alongside behavior (a successful run alone is still never "reproduced")
+- Versioned reproducibility packages (`quantoo.experiment.v1`) with export and untrusted-input import: schema pinned, size bounded, unknown environment ids skipped (never fetched), imported source executed only inside the sandbox
+- Compatibility API namespace (`/api/compatibility/environments`, `/experiments`, `/experiments/[id]`, `/experiments/[id]/export`, `/import`) with session auth, ownership enforcement, Zod validation, a dedicated rate limit, and server-side verdict recomputation
+- Compatibility Lab UI inside the workspace: environment matrix with availability labels, experiment execution, per-dimension evidence, "Inspect at divergence" deep link into the Phase 5 debugger, and package export/import
+- Test coverage: registry/fingerprint/policy units, real cross-environment integration (the same Bell program through both runtimes, genuine version metadata on both sides, X-vs-H behavioral difference across environments), full experiment flow over the real database, cross-user isolation, and tampered-package rejection
+
+**Not yet implemented:** cross-framework execution (PennyLane/Cirq), noise models, transpilation visualization, real hardware, projects, portfolio, AI tutor.
 
 ## Architecture
 

@@ -5,9 +5,15 @@ RUN useradd --create-home --shell /usr/sbin/nologin runner
 
 WORKDIR /app
 
+# Which pinned dependency set to bake in. The default builds the
+# deployment's standard runtime; `--build-arg REQUIREMENTS=requirements-legacy.txt`
+# builds a separate, controlled legacy environment image.
+# Users never influence this value: profiles are provisioned by the operator.
+ARG REQUIREMENTS=requirements.txt
+
 # Install pinned runtime dependencies first (layer caching).
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir --requirement /app/requirements.txt
+COPY requirements.txt requirements-legacy.txt /app/
+RUN pip install --no-cache-dir --requirement /app/${REQUIREMENTS}
 
 # Install the runner (read-only at runtime).
 COPY runner.py /app/runner.py

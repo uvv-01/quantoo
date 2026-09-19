@@ -115,6 +115,7 @@ model User {
   semanticBaselines         SemanticBaseline[]
   semanticComparisons       SemanticComparison[]
   semanticReproductions     SemanticReproduction[]
+  compatibilityExperiments  CompatibilityExperiment[]
 
   @@map("users")
 }
@@ -312,17 +313,18 @@ model Problem {
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
-  tags             ProblemTag[]
-  concepts         ProblemConcept[]
-  versions         ProblemVersion[]
-  progress         UserProblemProgress[]
-  activity         UserActivity[]
-  learningTopics   LearningTopicProblem[]
-  relatedFrom      ProblemRelation[]      @relation("fromProblem")
-  relatedTo        ProblemRelation[]      @relation("toProblem")
-  submissions      Submission[]
-  drafts           ProblemDraft[]
-  SemanticBaseline SemanticBaseline[]
+  tags                    ProblemTag[]
+  concepts                ProblemConcept[]
+  versions                ProblemVersion[]
+  progress                UserProblemProgress[]
+  activity                UserActivity[]
+  learningTopics          LearningTopicProblem[]
+  relatedFrom             ProblemRelation[]         @relation("fromProblem")
+  relatedTo               ProblemRelation[]         @relation("toProblem")
+  submissions             Submission[]
+  drafts                  ProblemDraft[]
+  SemanticBaseline        SemanticBaseline[]
+  CompatibilityExperiment CompatibilityExperiment[]
 
   @@index([difficulty])
   @@index([status])
@@ -500,6 +502,67 @@ model SemanticReproduction {
   @@index([userId, createdAt])
   @@index([originalSubmissionId])
   @@map("semantic_reproductions")
+}
+
+// ========================================
+// Quantum Compatibility & Reproducibility Lab (Phase 7)
+// ========================================
+
+/// A user-created compatibility experiment: one program, one baseline
+/// execution, and a set of controlled candidate environments to run the
+/// same program in. Environment ids reference the code-defined registry
+/// (lib/compat/environments.ts), which is the only source of valid ids.
+model CompatibilityExperiment {
+  id                   String   @id @default(uuid())
+  userId               String
+  problemId            String
+  name                 String
+  policyName           String   @default("statistical-default")
+  baselineSubmissionId String?
+  // Shared execution configuration: every run in the experiment uses the
+  // same shots and the same server-generated seed so that environments
+  // differ only by their runtime — never by sampling configuration.
+  shots                Int?
+  seed                 Int?
+  // Latest evidence-backed compatibility report (rebuilt after runs).
+  report               Json?
+  // Source for imported packages only (no baseline submission exists yet);
+  // the first execution runs it through the sandbox and records the local
+  // baseline submission. Null for experiments created from a baseline run.
+  sourceCode           String?  @db.Text
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem            @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  runs    CompatibilityRun[]
+
+  @@index([userId, createdAt])
+  @@index([problemId])
+  @@map("compatibility_experiments")
+}
+
+/// One cell of the environment matrix: the experiment's program executed
+/// in one registered environment (BASELINE role) or a candidate one.
+/// Execution always goes through the standard sandboxed pipeline; runs
+/// store references to submissions, never duplicated payloads.
+model CompatibilityRun {
+  id            String    @id @default(uuid())
+  experimentId  String
+  role          String // BASELINE | CANDIDATE
+  environmentId String
+  submissionId  String? // null while pending; set after the run completes
+  status        String    @default("PENDING") // PENDING | RUNNING | SUCCEEDED | FAILED | TIMED_OUT | RESOURCE_LIMIT
+  errorCode     String?
+  errorMessage  String?
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+
+  experiment CompatibilityExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@index([experimentId, createdAt])
+  @@index([environmentId])
+  @@map("compatibility_runs")
 }
 
 model UserProblemProgress {
